@@ -7,7 +7,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 let books = [];
 let category = "Todas";
 let pending = "";
+let pendingBookId = "";
 let session = null;
+let siteSettings = null;
 let isAdmin = false;
 
 const $ = s => document.querySelector(s);
@@ -37,7 +39,8 @@ function card(b){
       <div class="author">${escapeHtml(b.author)}</div>
       ${b.description ? `<div class="desc">${escapeHtml(b.description)}</div>` : ""}
       <div class="actions">
-        <button class="btn primary download" data-file="${escapeHtml(b.file_url || "")}">Descargar</button>
+        <button class="btn secondary readBook" data-id="${b.id}">Leer</button>
+        <button class="btn primary download" data-book-id="${b.id}" data-file="${escapeHtml(b.file_url || "")}">Colaborar y descargar</button>
         <button class="btn secondary heart ${f?"active":""}" data-fav="${b.id}">${f?"♥":"♡"}</button>
       </div>
     </div>
@@ -56,10 +59,23 @@ function filtered(){
 }
 
 function bindCards(root){
-  root.querySelectorAll(".download").forEach(btn => btn.onclick = () => {
+  root.querySelectorAll(".readBook").forEach(btn => btn.onclick = () => {
+    const book = books.find(x => x.id === btn.dataset.id);
+    if(book) openReader(book);
+  });
+
+  root.querySelectorAll(".download").forEach(btn => btn.onclick = async () => {
+    const book = books.find(x => x.id === btn.closest(".card")?.querySelector("[data-id]")?.dataset?.id);
     pending = btn.dataset.file;
+    pendingBookId = btn.dataset.bookId || "";
+    $("#paymentReference").value = "";
+    $("#paymentMethod").value = "";
+    $("#approvedDownload").classList.add("hidden");
+    $("#contributionState").textContent = "";
+    await loadContributionForPendingBook();
     $("#supportDialog").showModal();
   });
+
   root.querySelectorAll("[data-fav]").forEach(btn => btn.onclick = () => {
     const id = btn.dataset.fav;
     const a = favs();
@@ -103,6 +119,7 @@ async function checkAdmin(){
   const {data,error} = await supabase.from("admins").select("user_id").eq("user_id", session.user.id).maybeSingle();
   isAdmin = !error && !!data;
   updateAdminUI();
+  if(isAdmin){ await loadSiteSettings(); await loadAdminContributions(); }
 }
 
 function updateAdminUI(){
@@ -112,6 +129,8 @@ function updateAdminUI(){
   $("#claimBox").classList.toggle("hidden", !logged || isAdmin);
   $("#uploadForm").classList.toggle("hidden", !logged || !isAdmin);
   $("#adminBooks").classList.toggle("hidden", !logged || !isAdmin);
+  $("#paymentSettingsBox").classList.toggle("hidden", !logged || !isAdmin);
+  $("#contributionsAdminBox").classList.toggle("hidden", !logged || !isAdmin);
   $("#authBtn").textContent = logged ? "✓" : "WO";
 }
 
@@ -149,15 +168,230 @@ document.querySelectorAll(".chip").forEach(c => c.onclick = () => {
 });
 
 $("#closeDialog").onclick = () => $("#supportDialog").close();
-$("#continueDownload").onclick = () => {
+
+async function loadSiteSettings(){
+  const {data,error} = await supabase.from("site_settings").select("*").eq("id",1).maybeSingle();
+  if(error || !data) return;
+  siteSettings = data;
+  $("#bankLabel").textContent = data.bank_label || "Banco";
+  $("#bankInstructions").textContent = data.bank_instructions || "";
+  $("#paypalLabel").textContent = data.paypal_label || "PayPal";
+  $("#paymentNote").textContent = data.payment_note || "Colaboración sugerida: $1";
+  if(data.paypal_url){
+    $("#paypalLink").href = data.paypal_url;
+    $("#paypalLink").classList.remove("hidden");
+  }else{
+    $("#paypalLink").classList.add("hidden");
+  }
+
+  if(isAdmin){
+    $("#settingsBankLabel").value = data.bank_label || "";
+    $("#settingsBankInstructions").value = data.bank_instructions || "";
+    $("#settingsPaypalLabel").value = data.paypal_label || "";
+    $("#settingsPaypalUrl").value = data.paypal_url || "";
+    $("#settingsPaymentNote").value = data.payment_note || "";
+  }
+}
+
+async function loadContributionForPendingBook(){
+  if(!session?.user){
+    $("#contributionState").textContent = "Debes iniciar sesión antes de enviar un comprobante.";
+    return;
+  }
+  if(!pendingBookId) return;
+
+  const {data,error} = await supabase
+    .from("contributions")
+    .select("*")
+    .eq("book_id", pendingBookId)
+    .eq("user_id", session.user.id)
+    .order("created_at",{ascending:false})
+    .limit(1);
+
+  if(error || !data?.length) return;
+  const c = data[0];
+  if(c.status === "approved"){
+    $("#contributionState").textContent = "✅ Tu colaboración fue aprobada. Ya puedes descargar.";
+    $("#approvedDownload").classList.remove("hidden");
+  }else if(c.status === "rejected"){
+    $("#contributionState").textContent = "❌ La solicitud fue rechazada. Puedes enviar un nuevo comprobante.";
+  }else{
+    $("#contributionState").textContent = "⏳ Tu comprobante está pendiente de revisión.";
+  }
+}
+
+$("#contributionForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  if(!session?.user){
+    $("#contributionState").textContent = "Primero inicia sesión desde el botón WO.";
+    return;
+  }
+  if(!pendingBookId) return;
+
+  const method = $("#paymentMethod").value;
+  const ref = $("#paymentReference").value.trim();
+  if(!method || ref.length < 3){
+    $("#contributionState").textContent = "Completa el método y el número de comprobante.";
+    return;
+  }
+
+  $("#contributionState").textContent = "Enviando comprobante...";
+  const {error} = await supabase.from("contributions").insert({
+    book_id: pendingBookId,
+    user_id: session.user.id,
+    payment_method: method,
+    payment_reference: ref
+  });
+
+  if(error){
+    $("#contributionState").textContent = error.message;
+    return;
+  }
+
+  $("#contributionState").textContent = "⏳ Comprobante enviado. Espera la aprobación del administrador.";
+  await loadAdminContributions();
+});
+
+$("#approvedDownload").onclick = async () => {
+  if(!session?.user || !pendingBookId) return;
+  const {data,error} = await supabase
+    .from("contributions")
+    .select("status")
+    .eq("book_id", pendingBookId)
+    .eq("user_id", session.user.id)
+    .eq("status","approved")
+    .limit(1);
+
+  if(error || !data?.length){
+    $("#contributionState").textContent = "La descarga todavía no está aprobada.";
+    return;
+  }
+
   if(pending){
     const a=document.createElement("a");
     a.href=pending;
     a.target="_blank";
     a.rel="noopener";
+    a.download="";
+    document.body.appendChild(a);
     a.click();
+    a.remove();
   }
-  $("#supportDialog").close();
+};
+
+async function loadAdminContributions(){
+  if(!isAdmin) return;
+  const {data,error} = await supabase
+    .from("contributions")
+    .select("id,book_id,user_id,payment_method,payment_reference,status,created_at,reviewed_at,books(title)")
+    .order("created_at",{ascending:false});
+
+  if(error){
+    $("#contributionsAdminList").innerHTML = `<p>${escapeHtml(error.message)}</p>`;
+    return;
+  }
+
+  $("#contributionsAdminList").innerHTML = (data || []).length ? data.map(c => `
+    <div class="contribution-admin-row">
+      <div>
+        <strong>${escapeHtml(c.books?.title || "Libro")}</strong>
+        <small>${escapeHtml(c.payment_method)} · Ref: ${escapeHtml(c.payment_reference)}</small>
+        <small>${new Date(c.created_at).toLocaleString("es")}</small>
+        <span class="status-pill status-${escapeHtml(c.status)}">${escapeHtml(c.status)}</span>
+      </div>
+      <div class="review-actions">
+        ${c.status === "pending" ? `
+          <button class="btn primary approveContribution" data-id="${c.id}">Aprobar</button>
+          <button class="btn danger rejectContribution" data-id="${c.id}">Rechazar</button>` : ""}
+      </div>
+    </div>`).join("") : "<p>No hay solicitudes todavía.</p>";
+
+  document.querySelectorAll(".approveContribution").forEach(btn => btn.onclick = () => reviewContribution(btn.dataset.id,"approved"));
+  document.querySelectorAll(".rejectContribution").forEach(btn => btn.onclick = () => reviewContribution(btn.dataset.id,"rejected"));
+}
+
+async function reviewContribution(id,status){
+  const {error} = await supabase
+    .from("contributions")
+    .update({status, reviewed_at:new Date().toISOString()})
+    .eq("id",id);
+
+  if(error) return alert(error.message);
+  await loadAdminContributions();
+}
+
+$("#savePaymentSettings").onclick = async () => {
+  if(!isAdmin) return;
+  $("#paymentSettingsStatus").textContent = "Guardando...";
+  const payload = {
+    bank_label: $("#settingsBankLabel").value.trim(),
+    bank_instructions: $("#settingsBankInstructions").value.trim(),
+    paypal_label: $("#settingsPaypalLabel").value.trim(),
+    paypal_url: $("#settingsPaypalUrl").value.trim() || null,
+    payment_note: $("#settingsPaymentNote").value.trim(),
+    updated_at: new Date().toISOString()
+  };
+  const {error} = await supabase.from("site_settings").update(payload).eq("id",1);
+  $("#paymentSettingsStatus").textContent = error ? error.message : "Datos de colaboración actualizados.";
+  if(!error) await loadSiteSettings();
+};
+
+let epubBook = null;
+let epubRendition = null;
+
+async function openReader(book){
+  const dialog = $("#readerDialog");
+  const content = $("#readerContent");
+  $("#readerTitle").textContent = book.title;
+  content.innerHTML = '<p class="reader-loading">Cargando lectura...</p>';
+  dialog.showModal();
+
+  const url = book.file_url;
+  const format = (book.format || "").toUpperCase();
+
+  try{
+    if(format === "PDF"){
+      content.innerHTML = `<iframe class="pdf-frame" src="${escapeHtml(url)}#toolbar=1&navpanes=0" title="${escapeHtml(book.title)}"></iframe>`;
+      return;
+    }
+
+    if(format === "TXT"){
+      const response = await fetch(url);
+      if(!response.ok) throw new Error("No se pudo abrir el archivo.");
+      const text = await response.text();
+      content.innerHTML = `<pre class="txt-reader">${escapeHtml(text)}</pre>`;
+      return;
+    }
+
+    if(format === "EPUB"){
+      if(typeof window.ePub !== "function") throw new Error("El lector EPUB no pudo cargarse.");
+      content.innerHTML = `
+        <div class="epub-toolbar">
+          <button class="btn secondary" id="epubPrev">← Anterior</button>
+          <button class="btn secondary" id="epubNext">Siguiente →</button>
+        </div>
+        <div id="epubViewer" class="epub-viewer"></div>`;
+      epubBook = window.ePub(url);
+      epubRendition = epubBook.renderTo("epubViewer", {width:"100%", height:"100%"});
+      await epubRendition.display();
+      $("#epubPrev").onclick = () => epubRendition.prev();
+      $("#epubNext").onclick = () => epubRendition.next();
+      return;
+    }
+
+    throw new Error("Formato no compatible con el lector.");
+  }catch(err){
+    content.innerHTML = `<div class="reader-error"><h3>No se pudo abrir este libro</h3><p>${escapeHtml(err.message || "Error desconocido")}</p></div>`;
+  }
+}
+
+$("#closeReader").onclick = () => {
+  if(epubRendition){ try{ epubRendition.destroy(); }catch{} }
+  if(epubBook){ try{ epubBook.destroy(); }catch{} }
+  epubRendition = null;
+  epubBook = null;
+  $("#readerContent").innerHTML = "";
+  $("#readerDialog").close();
 };
 
 $("#authBtn").onclick = () => {
@@ -242,6 +476,7 @@ $("#uploadForm").addEventListener("submit", async e => {
 const {data:{session:initialSession}}=await supabase.auth.getSession();
 session=initialSession;
 await checkAdmin();
+await loadSiteSettings();
 await loadBooks();
 
 supabase.auth.onAuthStateChange(async (_event,newSession)=>{

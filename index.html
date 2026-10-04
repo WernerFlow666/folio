@@ -120,6 +120,25 @@
         <p id="uploadStatus" class="status"></p>
       </form>
 
+
+      <div id="paymentSettingsBox" class="adminbox hidden">
+        <h3>Flyer y métodos de colaboración</h3>
+        <div class="formgrid">
+          <input id="settingsBankLabel" placeholder="Nombre del banco">
+          <textarea id="settingsBankInstructions" placeholder="Datos/instrucciones para transferencia"></textarea>
+          <input id="settingsPaypalLabel" placeholder="Nombre del método PayPal">
+          <input id="settingsPaypalUrl" placeholder="Enlace de PayPal">
+          <input id="settingsPaymentNote" placeholder="Texto del flyer, por ejemplo: Colaboración sugerida: $1">
+          <button class="btn primary" id="savePaymentSettings" type="button">Guardar datos de colaboración</button>
+        </div>
+        <p id="paymentSettingsStatus" class="status"></p>
+      </div>
+
+      <div id="contributionsAdminBox" class="adminbox hidden">
+        <h3>Colaboraciones pendientes</h3>
+        <div id="contributionsAdminList"></div>
+      </div>
+
       <div id="adminBooks" class="adminbox hidden">
         <h3>Libros publicados</h3>
         <div id="adminBookList"></div>
@@ -144,16 +163,58 @@
 
 <dialog id="supportDialog">
   <div class="modal">
-    <p class="eyebrow">ANTES DE DESCARGAR</p>
-    <h2>Apoya a Folio</h2>
-    <p>La descarga es gratuita. Si este repositorio te resulta útil, puedes colaborar voluntariamente con <strong>$1</strong>.</p>
-    <div class="supportbox">
-      <strong>Colaboración opcional</strong>
-      <p>La colaboración no es obligatoria para descargar.</p>
+    <p class="eyebrow">COLABORA Y DESCARGA</p>
+    <h2>Colabora con $1</h2>
+    <p>Puedes leer el libro gratuitamente en Folio. Para solicitar la descarga, inicia sesión y registra los datos de tu colaboración.</p>
+
+    <div class="supportbox flyer-box">
+      <div class="flyer-title">FOLIO · APOYA LA LECTURA</div>
+      <div class="flyer-amount">$1</div>
+      <p id="paymentNote">Colaboración sugerida: $1</p>
+
+      <div class="payment-method-card">
+        <strong id="bankLabel">Banco Pichincha</strong>
+        <p id="bankInstructions">Los datos de pago serán configurados por el administrador.</p>
+      </div>
+
+      <div class="payment-method-card">
+        <strong id="paypalLabel">PayPal</strong>
+        <p>Puedes realizar la colaboración mediante el enlace configurado.</p>
+        <a id="paypalLink" class="btn secondary hidden" href="#" target="_blank" rel="noopener">Ir a PayPal</a>
+      </div>
     </div>
+
+    <form id="contributionForm" class="formgrid one">
+      <select id="paymentMethod" required>
+        <option value="">Método de pago</option>
+        <option>Banco Pichincha</option>
+        <option>PayPal</option>
+        <option>Otro</option>
+      </select>
+      <input id="paymentReference" required placeholder="Número de comprobante / ID de transacción">
+      <button type="submit" class="btn primary">Enviar comprobante</button>
+    </form>
+
+    <div id="contributionState" class="status contribution-state"></div>
+
     <div class="modalactions">
-      <button class="btn secondary" id="closeDialog">Volver</button>
-      <button class="btn primary" id="continueDownload">Continuar con la descarga</button>
+      <button class="btn secondary" id="closeDialog">Cerrar</button>
+      <button class="btn primary hidden" id="approvedDownload">Descargar libro</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="readerDialog" class="reader-dialog">
+  <div class="reader-shell">
+    <div class="reader-top">
+      <div>
+        <p class="eyebrow">LECTOR FOLIO</p>
+        <h2 id="readerTitle">Libro</h2>
+      </div>
+      <button class="btn secondary" id="closeReader">Cerrar</button>
+    </div>
+    <div id="readerContent" class="reader-content">
+      <p>Cargando lectura...</p>
     </div>
   </div>
 </dialog>
@@ -176,6 +237,7 @@
   </form>
 </dialog>
 
+<script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
 <script type="module" src="app.js"></script>
 </body>
 </html>

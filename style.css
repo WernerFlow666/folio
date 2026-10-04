@@ -28,3 +28,75 @@ dialog{border:0;padding:0;border-radius:24px;width:min(560px,calc(100% - 30px));
 .adminrow{display:flex;gap:15px;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line)}.adminrow:last-child{border-bottom:0}.adminrow small{display:block;color:var(--muted);margin-top:3px}
 @media(max-width:950px){.grid{grid-template-columns:repeat(2,1fr)}nav{display:none}}
 @media(max-width:560px){.grid{grid-template-columns:1fr}.sectionhead{align-items:flex-start;flex-direction:column}.formgrid{grid-template-columns:1fr}}
+
+
+/* Lector integrado */
+.reader-dialog{
+  width:min(1180px,96vw);
+  height:min(860px,94vh);
+  max-width:none;
+  max-height:none;
+  border-radius:20px;
+}
+.reader-dialog::backdrop{background:rgba(10,12,10,.72)}
+.reader-shell{height:100%;display:flex;flex-direction:column;background:var(--paper)}
+.reader-top{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px 22px;border-bottom:1px solid var(--line)}
+.reader-top h2{margin:4px 0 0;font-size:28px}
+.reader-content{flex:1;min-height:0;padding:0;overflow:auto;background:#f7f5ef}
+.pdf-frame{width:100%;height:100%;min-height:70vh;border:0;background:white}
+.txt-reader{white-space:pre-wrap;max-width:850px;margin:0 auto;padding:36px;font:18px/1.75 Georgia,serif;background:white;min-height:100%}
+.epub-toolbar{display:flex;justify-content:center;gap:10px;padding:12px;border-bottom:1px solid var(--line);background:var(--paper)}
+.epub-viewer{height:calc(100% - 64px);min-height:65vh;background:white}
+.reader-loading,.reader-error{padding:40px;text-align:center;color:var(--muted)}
+.confirm-row{display:flex;align-items:center;gap:10px;padding:12px 2px;margin:6px 0 16px;cursor:pointer}
+.confirm-row input{width:18px;height:18px}
+.payment-link{display:inline-flex;margin-top:8px}
+.actions{flex-wrap:wrap}
+.actions .readBook{min-width:90px}
+.actions .download{min-width:160px}
+.actions .heart{flex:0 0 43px!important}
+@media(max-width:650px){
+  .reader-dialog{width:100vw;height:100vh;border-radius:0}
+  .reader-top{padding:12px}
+  .reader-top h2{font-size:22px}
+  .txt-reader{padding:22px;font-size:17px}
+}
+
+
+/* Flujo de colaboración */
+.flyer-box{
+  background:linear-gradient(145deg,#173b31,#244f43);
+  color:white;
+  border:0;
+  text-align:center;
+}
+.flyer-box p{color:rgba(255,255,255,.82)}
+.flyer-title{font-weight:900;letter-spacing:.13em;font-size:13px}
+.flyer-amount{font:700 clamp(54px,9vw,88px)/1 Georgia,serif;margin:12px 0}
+.payment-method-card{
+  margin-top:12px;
+  padding:14px;
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:14px;
+  text-align:left;
+  background:rgba(255,255,255,.08);
+}
+.payment-method-card p{margin:7px 0}
+.contribution-state{padding:12px 0;font-weight:700}
+.contribution-admin-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:15px 0;
+  border-bottom:1px solid var(--line);
+}
+.contribution-admin-row small{display:block;color:var(--muted);margin-top:4px}
+.review-actions{display:flex;gap:8px;flex-wrap:wrap}
+.status-pill{display:inline-block;margin-top:7px;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:800;text-transform:uppercase}
+.status-pending{background:#f4e5b7}
+.status-approved{background:#d6eadb}
+.status-rejected{background:#f1d3d3}
+@media(max-width:650px){
+  .contribution-admin-row{align-items:flex-start;flex-direction:column}
+}
