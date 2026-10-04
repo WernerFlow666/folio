@@ -16,8 +16,9 @@
       <a href="#biblioteca">Explorar</a>
       <a href="#categorias">Categorías</a>
       <a href="#favoritos">Favoritos</a>
+      <a href="#admin" id="adminNav" class="hidden">Administrar</a>
     </nav>
-    <div class="avatar" title="Administrador">WO</div>
+    <button class="avatar" id="authBtn" title="Acceso administrador">WO</button>
   </div>
 </header>
 
@@ -59,7 +60,7 @@
         <p>Materiales organizados para lectura y descarga.</p>
       </div>
       <div class="toolbar">
-        <span id="count"></span>
+        <span id="count">Cargando...</span>
         <select id="sort" aria-label="Ordenar">
           <option value="recent">Recientes</option>
           <option value="az">Título: A–Z</option>
@@ -79,6 +80,50 @@
       </div>
       <div class="grid" id="favoritesGrid"></div>
       <div class="empty" id="favoritesEmpty">Todavía no has guardado favoritos.</div>
+    </div>
+  </section>
+
+  <section class="section hidden" id="admin">
+    <div class="wrap">
+      <p class="eyebrow">PANEL PRIVADO</p>
+      <div class="sectionhead">
+        <h2>Administrar Folio</h2>
+        <button class="btn secondary" id="logoutBtn">Cerrar sesión</button>
+      </div>
+
+      <div id="claimBox" class="adminbox hidden">
+        <h3>Activar esta cuenta como administrador</h3>
+        <p>Introduce el código privado de activación. Solo se usa para registrar al primer administrador.</p>
+        <div class="formgrid one">
+          <input id="claimCode" type="password" placeholder="Código de activación">
+          <button class="btn primary" id="claimBtn">Activar administrador</button>
+        </div>
+        <p id="claimStatus" class="status"></p>
+      </div>
+
+      <form id="uploadForm" class="adminbox hidden">
+        <h3>Subir nuevo libro</h3>
+        <div class="formgrid">
+          <input id="title" required placeholder="Título">
+          <input id="author" required placeholder="Autor">
+          <select id="category" required>
+            <option value="">Categoría</option>
+            <option>Literatura</option>
+            <option>Tecnología</option>
+            <option>Educación</option>
+            <option>Ciencias</option>
+          </select>
+          <textarea id="description" placeholder="Descripción breve"></textarea>
+          <input id="file" type="file" accept=".pdf,.epub,.txt" required>
+          <button class="btn primary" type="submit">Subir libro</button>
+        </div>
+        <p id="uploadStatus" class="status"></p>
+      </form>
+
+      <div id="adminBooks" class="adminbox hidden">
+        <h3>Libros publicados</h3>
+        <div id="adminBookList"></div>
+      </div>
     </div>
   </section>
 
@@ -104,7 +149,7 @@
     <p>La descarga es gratuita. Si este repositorio te resulta útil, puedes colaborar voluntariamente con <strong>$1</strong>.</p>
     <div class="supportbox">
       <strong>Colaboración opcional</strong>
-      <p>Configura aquí tu método de colaboración antes de publicar datos financieros.</p>
+      <p>La colaboración no es obligatoria para descargar.</p>
     </div>
     <div class="modalactions">
       <button class="btn secondary" id="closeDialog">Volver</button>
@@ -113,6 +158,24 @@
   </div>
 </dialog>
 
-<script src="app.js"></script>
+<dialog id="authDialog">
+  <form class="modal" id="authForm">
+    <p class="eyebrow">ACCESO PRIVADO</p>
+    <h2>Administrador</h2>
+    <p>Inicia sesión o crea tu cuenta de administrador.</p>
+    <div class="formgrid one">
+      <input id="email" type="email" required placeholder="Correo electrónico">
+      <input id="password" type="password" required minlength="6" placeholder="Contraseña">
+    </div>
+    <p id="authStatus" class="status"></p>
+    <div class="modalactions">
+      <button type="button" class="btn secondary" id="closeAuth">Cancelar</button>
+      <button type="button" class="btn secondary" id="signupBtn">Crear cuenta</button>
+      <button type="submit" class="btn primary">Iniciar sesión</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module" src="app.js"></script>
 </body>
 </html>

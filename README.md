@@ -1,20 +1,25 @@
 # Folio
 
-Repositorio digital de libros y lecturas.
+Repositorio digital de libros conectado a Supabase.
 
-## Publicación en GitHub Pages
+## Archivos
+Todos los archivos se suben directamente a la raíz del repositorio.
 
-1. Sube estos archivos a la rama `main`.
-2. En GitHub abre **Settings → Pages**.
-3. En **Build and deployment**, selecciona **Deploy from a branch**.
-4. Selecciona `main` y la carpeta `/ (root)`.
-5. Guarda los cambios.
+## Funciones
+- Catálogo público desde Supabase
+- Búsqueda por título o autor
+- Categorías
+- Favoritos locales
+- Descargas con aviso de colaboración
+- Registro e inicio de sesión
+- Panel privado de administrador
+- Subida de PDF, EPUB y TXT a Supabase Storage
+- Alta y eliminación de libros desde la web
 
-## Estructura
+## GitHub Pages
+Settings → Pages → Deploy from a branch → main → / (root)
 
-- `index.html`: página principal
-- `style.css`: diseño
-- `app.js`: búsqueda, categorías, favoritos y descargas
-- `books/`: archivos descargables
-
-> Importante: no publiques cédulas ni datos financieros sensibles en un repositorio público.
+## Seguridad
+La clave incluida en `app.js` es una publishable key de Supabase, diseñada para usarse en frontend.
+La seguridad real está aplicada mediante Row Level Security (RLS) en Supabase.
+No publiques service_role keys ni contraseñas en GitHub.
