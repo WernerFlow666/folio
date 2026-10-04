@@ -178,18 +178,18 @@ async function checkAdmin(){
 
 function updateAdminUI(){
   const logged = !!session?.user;
-  $("#admin").classList.toggle("hidden", !logged);
-  $("#adminNav").classList.toggle("hidden", !logged);
-  $("#claimBox").classList.toggle("hidden", !logged || isAdmin);
-  $("#uploadForm").classList.toggle("hidden", !logged || !isAdmin);
-  $("#adminBooks").classList.toggle("hidden", !logged || !isAdmin);
-  $("#paymentSettingsBox").classList.toggle("hidden", !logged || !isAdmin);
-  $("#contributionsAdminBox").classList.toggle("hidden", !logged || !isAdmin);
-  $("#authBtn").textContent = logged ? "✓" : "WO";
+  $("#admin")?.classList.toggle("hidden", !logged);
+  $("#adminNav")?.classList.toggle("hidden", !logged);
+  $("#claimBox")?.classList.toggle("hidden", !logged || isAdmin);
+  $("#uploadForm")?.classList.toggle("hidden", !logged || !isAdmin);
+  $("#adminBooks")?.classList.toggle("hidden", !logged || !isAdmin);
+  $("#paymentSettingsBox")?.classList.toggle("hidden", !logged || !isAdmin);
+  $("#contributionsAdminBox")?.classList.toggle("hidden", !logged || !isAdmin);
+  if($("#authBtn")) $("#authBtn").textContent = logged ? "✓" : "WO";
 }
 
 async function renderAdminList(){
-  if(!isAdmin) return;
+  if(!isAdmin || !$("#adminBookList")) return;
   $("#adminBookList").innerHTML = books.length ? books.map(b => `
     <div class="adminrow">
       <div><strong>${escapeHtml(b.title)}</strong><small>${escapeHtml(b.author)} · ${escapeHtml(b.format)}</small></div>
@@ -226,8 +226,8 @@ async function renderAdminList(){
   });
 }
 
-$("#search").addEventListener("input",render);
-$("#sort").addEventListener("change",render);
+$("#search")?.addEventListener("input",render);
+$("#sort")?.addEventListener("change",render);
 
 document.querySelectorAll("button.chip").forEach(c => c.onclick = () => {
   document.querySelectorAll("button.chip").forEach(x=>x.classList.remove("active"));
@@ -245,7 +245,7 @@ $("#categoryQuickFilter")?.addEventListener("change", e => {
   $("#biblioteca").scrollIntoView({behavior:"smooth"});
 });
 
-$("#closeDialog").onclick = () => $("#supportDialog").close();
+if($("#closeDialog")) $("#closeDialog").onclick = () => $("#supportDialog")?.close();
 
 async function loadSiteSettings(){
   const {data,error} = await supabase.from("site_settings").select("*").eq("id",1).maybeSingle();

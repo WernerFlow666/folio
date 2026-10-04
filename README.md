@@ -78,3 +78,8 @@ Literatura, Psicología, Autoayuda, Educación, Tecnología, Ciencias, Historia,
 - Las imágenes del comprobante se guardan en un bucket privado.
 - Solo el administrador puede abrirlas.
 - Se visualizan en un modal moderno con enlace temporal firmado.
+
+
+## Reparación estable
+Esta versión corrige un error de JavaScript que podía ocultar la biblioteca y el panel de administración.
+El archivo `app.js` fue validado sintácticamente antes de generar este paquete.
