@@ -46,9 +46,38 @@
       <div class="chips">
         <button class="chip active" data-category="Todas">Ver todas</button>
         <button class="chip" data-category="Literatura">Literatura</button>
-        <button class="chip" data-category="Tecnología">Tecnología</button>
+        <button class="chip" data-category="Psicología">Psicología</button>
+        <button class="chip" data-category="Autoayuda">Autoayuda</button>
         <button class="chip" data-category="Educación">Educación</button>
-        <button class="chip" data-category="Ciencias">Ciencias</button>
+        <button class="chip" data-category="Tecnología">Tecnología</button>
+        <button class="chip" data-category="Historia">Historia</button>
+        <button class="chip" data-category="Finanzas">Finanzas</button>
+        <select id="categoryQuickFilter" class="chip category-select" aria-label="Más categorías">
+          <option value="">Más categorías</option>
+          <option>Biografías</option>
+          <option>Negocios</option>
+          <option>Emprendimiento</option>
+          <option>Filosofía</option>
+          <option>Religión y espiritualidad</option>
+          <option>Salud y bienestar</option>
+          <option>Romance</option>
+          <option>Misterio y suspenso</option>
+          <option>Terror</option>
+          <option>Ciencia ficción</option>
+          <option>Fantasía</option>
+          <option>Juvenil</option>
+          <option>Infantil</option>
+          <option>Poesía</option>
+          <option>Arte y diseño</option>
+          <option>Derecho</option>
+          <option>Política y sociedad</option>
+          <option>Cocina</option>
+          <option>Viajes</option>
+          <option>Idiomas</option>
+          <option>Informática</option>
+          <option>Matemáticas</option>
+          <option>Ciencias</option>
+        </select>
       </div>
     </div>
   </section>
@@ -110,12 +139,38 @@
           <select id="category" required>
             <option value="">Categoría</option>
             <option>Literatura</option>
-            <option>Tecnología</option>
+            <option>Psicología</option>
+            <option>Autoayuda</option>
             <option>Educación</option>
+            <option>Tecnología</option>
             <option>Ciencias</option>
+            <option>Historia</option>
+            <option>Biografías</option>
+            <option>Finanzas</option>
+            <option>Negocios</option>
+            <option>Emprendimiento</option>
+            <option>Filosofía</option>
+            <option>Religión y espiritualidad</option>
+            <option>Salud y bienestar</option>
+            <option>Romance</option>
+            <option>Misterio y suspenso</option>
+            <option>Terror</option>
+            <option>Ciencia ficción</option>
+            <option>Fantasía</option>
+            <option>Juvenil</option>
+            <option>Infantil</option>
+            <option>Poesía</option>
+            <option>Arte y diseño</option>
+            <option>Derecho</option>
+            <option>Política y sociedad</option>
+            <option>Cocina</option>
+            <option>Viajes</option>
+            <option>Idiomas</option>
+            <option>Informática</option>
+            <option>Matemáticas</option>
           </select>
           <textarea id="description" placeholder="Descripción breve"></textarea>
-          <label class="file-field"><span>Portada del libro</span><input id="coverFile" type="file" accept=".jpg,.jpeg,.png,.webp" required><small>JPG, PNG o WEBP</small></label>
+          <label class="file-field"><span>Portada personalizada (opcional)</span><input id="coverFile" type="file" accept=".jpg,.jpeg,.png,.webp"><small>Si subes un PDF y no eliges portada, Folio usará automáticamente la primera página del PDF como portada.</small></label>
           <label class="file-field"><span>Archivo del libro</span><input id="file" type="file" accept=".pdf,.epub,.txt" required><small>PDF, EPUB o TXT</small></label>
           <button class="btn primary" type="submit">Subir libro</button>
         </div>
@@ -194,6 +249,7 @@
         <option>Otro</option>
       </select>
       <input id="paymentReference" required placeholder="Número de comprobante / ID de transacción">
+      <label class="file-field"><span>Foto del comprobante</span><input id="receiptImage" type="file" accept=".jpg,.jpeg,.png,.webp" required><small>Sube una imagen del comprobante o captura del pago.</small></label>
       <button type="submit" class="btn primary">Enviar comprobante</button>
     </form>
 
@@ -217,6 +273,22 @@
     </div>
     <div id="readerContent" class="reader-content">
       <p>Cargando lectura...</p>
+    </div>
+  </div>
+</dialog>
+
+
+<dialog id="receiptDialog" class="receipt-dialog">
+  <div class="receipt-modal-shell">
+    <div class="receipt-modal-top">
+      <div>
+        <p class="eyebrow">COMPROBANTE DE PAGO</p>
+        <h2 id="receiptModalTitle">Comprobante</h2>
+      </div>
+      <button class="btn secondary" id="closeReceiptModal">Cerrar</button>
+    </div>
+    <div class="receipt-modal-body">
+      <img id="receiptModalImage" alt="Comprobante de pago">
     </div>
   </div>
 </dialog>

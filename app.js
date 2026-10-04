@@ -18,12 +18,65 @@ const $ = s => document.querySelector(s);
 const favs = () => JSON.parse(localStorage.getItem("folio-favs") || "[]");
 const saveFavs = x => localStorage.setItem("folio-favs", JSON.stringify(x));
 
+function safeFileName(name="archivo"){ return name.replace(/[^a-zA-Z0-9._-]/g,"_"); }
+
+async function blobToJpeg(blob, quality=0.92){
+  const img = await new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const image = new Image();
+    image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+    image.onerror = reject;
+    image.src = url;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img,0,0);
+  return await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", quality));
+}
+
+async function extractPdfCoverBlob(file){
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
+  const page = await pdf.getPage(1);
+  const baseViewport = page.getViewport({scale:1});
+  const targetWidth = 900;
+  const scale = targetWidth / baseViewport.width;
+  const viewport = page.getViewport({scale});
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({canvasContext: ctx, viewport}).promise;
+  return await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.92));
+}
+
+async function uploadCoverFromBlob(blob, baseName="cover.jpg"){
+  const clean = safeFileName(baseName);
+  const path = `${crypto.randomUUID()}-${clean}`;
+  const {error} = await supabase.storage.from("covers").upload(path, blob, {upsert:false, contentType:"image/jpeg"});
+  if(error) throw error;
+  const {data} = supabase.storage.from("covers").getPublicUrl(path);
+  return {path, url: data.publicUrl};
+}
+
 function escapeHtml(v=""){
   return String(v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 }
 
 function symbolFor(category){
-  return {Educación:"✳",Tecnología:"◈",Ciencias:"◎",Literatura:"❋"}[category] || "✦";
+  const map={
+    "Educación":"✳","Tecnología":"◈","Ciencias":"◎","Literatura":"❋","Psicología":"◌",
+    "Autoayuda":"✦","Historia":"⌛","Biografías":"◍","Finanzas":"$","Negocios":"◆",
+    "Emprendimiento":"↗","Filosofía":"∞","Religión y espiritualidad":"☼","Salud y bienestar":"✚",
+    "Romance":"♡","Misterio y suspenso":"?","Terror":"☾","Ciencia ficción":"⌁","Fantasía":"✧",
+    "Juvenil":"★","Infantil":"☁","Poesía":"❞","Arte y diseño":"✎","Derecho":"⚖",
+    "Política y sociedad":"◫","Cocina":"♨","Viajes":"⌖","Idiomas":"A","Informática":"</>",
+    "Matemáticas":"∑"
+  };
+  return map[category] || "✦";
+}[category] || "✦";
 }
 
 function card(b){
@@ -185,6 +238,14 @@ document.querySelectorAll(".chip").forEach(c => c.onclick = () => {
   $("#biblioteca").scrollIntoView({behavior:"smooth"});
 });
 
+$("#categoryQuickFilter")?.addEventListener("change", e => {
+  if(!e.target.value) return;
+  document.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));
+  category = e.target.value;
+  render();
+  $("#biblioteca").scrollIntoView({behavior:"smooth"});
+});
+
 $("#closeDialog").onclick = () => $("#supportDialog").close();
 
 async function loadSiteSettings(){
@@ -248,26 +309,43 @@ $("#contributionForm").addEventListener("submit", async e => {
 
   const method = $("#paymentMethod").value;
   const ref = $("#paymentReference").value.trim();
+  const receiptFile = $("#receiptImage").files[0];
+
   if(!method || ref.length < 3){
     $("#contributionState").textContent = "Completa el método y el número de comprobante.";
     return;
   }
+  if(!receiptFile){
+    $("#contributionState").textContent = "Debes subir la foto del comprobante.";
+    return;
+  }
 
-  $("#contributionState").textContent = "Enviando comprobante...";
+  $("#contributionState").textContent = "Subiendo comprobante...";
+  const receiptPath = `${session.user.id}/${crypto.randomUUID()}-${safeFileName(receiptFile.name)}`;
+
+  const {error:receiptError} = await supabase.storage.from("receipts").upload(receiptPath, receiptFile, {upsert:false});
+  if(receiptError){
+    $("#contributionState").textContent = receiptError.message;
+    return;
+  }
+
   const {error} = await supabase.from("contributions").insert({
     book_id: pendingBookId,
     user_id: session.user.id,
     payment_method: method,
-    payment_reference: ref
+    payment_reference: ref,
+    payment_receipt_path: receiptPath
   });
 
   if(error){
+    await supabase.storage.from("receipts").remove([receiptPath]);
     $("#contributionState").textContent = error.message;
     return;
   }
 
+  $("#contributionForm").reset();
   $("#contributionState").textContent = "⏳ Comprobante enviado. Espera la aprobación del administrador.";
-  await Swal.fire({icon:"success",title:status==="approved"?"Solicitud aprobada":"Solicitud rechazada",timer:1200,showConfirmButton:false});
+  await Swal.fire({icon:"success",title:"Comprobante enviado",text:"Tu solicitud quedó pendiente de revisión.",confirmButtonText:"Entendido"});
   await loadAdminContributions();
 });
 
@@ -302,7 +380,7 @@ async function loadAdminContributions(){
   if(!isAdmin) return;
   const {data,error} = await supabase
     .from("contributions")
-    .select("id,book_id,user_id,payment_method,payment_reference,status,created_at,reviewed_at,books(title)")
+    .select("id,book_id,user_id,payment_method,payment_reference,payment_receipt_path,status,created_at,reviewed_at,books(title)")
     .order("created_at",{ascending:false});
 
   if(error){
@@ -327,6 +405,19 @@ async function loadAdminContributions(){
 
   document.querySelectorAll(".approveContribution").forEach(btn => btn.onclick = () => reviewContribution(btn.dataset.id,"approved"));
   document.querySelectorAll(".rejectContribution").forEach(btn => btn.onclick = () => reviewContribution(btn.dataset.id,"rejected"));
+
+  document.querySelectorAll(".viewReceipt").forEach(btn => btn.onclick = async () => {
+    const path = btn.dataset.path;
+    const title = btn.dataset.title || "Comprobante";
+    const {data,error} = await supabase.storage.from("receipts").createSignedUrl(path, 300);
+    if(error){
+      await Swal.fire({icon:"error",title:"No se pudo abrir el comprobante",text:error.message});
+      return;
+    }
+    $("#receiptModalTitle").textContent = title;
+    $("#receiptModalImage").src = data.signedUrl;
+    $("#receiptDialog").showModal();
+  });
 }
 
 async function reviewContribution(id,status){
@@ -336,6 +427,7 @@ async function reviewContribution(id,status){
     .eq("id",id);
 
   if(error){ await Swal.fire({icon:"error",title:"No se pudo completar",text:error.message}); return; }
+  await Swal.fire({icon:"success",title:status === "approved" ? "Solicitud aprobada" : "Solicitud rechazada",timer:1200,showConfirmButton:false});
   await loadAdminContributions();
 }
 
@@ -358,6 +450,7 @@ $("#savePaymentSettings").onclick = async () => {
 let pdfDoc = null;
 let pdfPage = 1;
 let pdfRendering = false;
+let pdfZoom = 1;
 let epubBook = null;
 let epubRendition = null;
 
@@ -376,14 +469,20 @@ async function openReader(book){
       content.innerHTML = `
         <div class="pdf-reader-shell">
           <div class="pdf-toolbar">
-            <button class="btn secondary" id="pdfPrev">← Anterior</button>
+            <button class="btn secondary" id="pdfPrev">←</button>
             <span id="pdfPageInfo">Página 1</span>
-            <button class="btn secondary" id="pdfNext">Siguiente →</button>
+            <button class="btn secondary" id="pdfNext">→</button>
+            <span class="pdf-toolbar-sep"></span>
+            <button class="btn secondary" id="pdfZoomOut">−</button>
+            <span id="pdfZoomInfo">100%</span>
+            <button class="btn secondary" id="pdfZoomIn">+</button>
+            <button class="btn secondary" id="pdfFit">Ajustar</button>
           </div>
           <div class="pdf-canvas-wrap"><canvas id="pdfCanvas"></canvas></div>
         </div>`;
       pdfDoc = await pdfjsLib.getDocument(url).promise;
       pdfPage = 1;
+      pdfZoom = 1;
 
       async function renderPdfPage(num){
         if(pdfRendering) return;
@@ -394,9 +493,9 @@ async function openReader(book){
           const ctx = canvas.getContext("2d");
           const wrap = canvas.parentElement;
           const baseViewport = page.getViewport({scale:1});
-          const maxWidth = Math.max(280, Math.min(wrap.clientWidth - 24, 900));
-          const scale = maxWidth / baseViewport.width;
-          const viewport = page.getViewport({scale});
+          const fitWidth = Math.max(280, Math.min(wrap.clientWidth - 24, 900));
+          const fitScale = fitWidth / baseViewport.width;
+          const viewport = page.getViewport({scale:fitScale * pdfZoom});
           const ratio = window.devicePixelRatio || 1;
 
           canvas.width = Math.floor(viewport.width * ratio);
@@ -411,9 +510,9 @@ async function openReader(book){
           }).promise;
 
           $("#pdfPageInfo").textContent = `Página ${num} de ${pdfDoc.numPages}`;
+          $("#pdfZoomInfo").textContent = `${Math.round(pdfZoom*100)}%`;
           $("#pdfPrev").disabled = num <= 1;
           $("#pdfNext").disabled = num >= pdfDoc.numPages;
-          wrap.scrollTop = 0;
         }finally{
           pdfRendering = false;
         }
@@ -427,6 +526,18 @@ async function openReader(book){
       $("#pdfNext").onclick = async () => {
         if(pdfPage >= pdfDoc.numPages) return;
         pdfPage += 1;
+        await renderPdfPage(pdfPage);
+      };
+      $("#pdfZoomIn").onclick = async () => {
+        pdfZoom = Math.min(2.5, +(pdfZoom + 0.15).toFixed(2));
+        await renderPdfPage(pdfPage);
+      };
+      $("#pdfZoomOut").onclick = async () => {
+        pdfZoom = Math.max(0.6, +(pdfZoom - 0.15).toFixed(2));
+        await renderPdfPage(pdfPage);
+      };
+      $("#pdfFit").onclick = async () => {
+        pdfZoom = 1;
         await renderPdfPage(pdfPage);
       };
 
@@ -467,6 +578,7 @@ async function openReader(book){
 $("#closeReader").onclick = () => {
   pdfDoc = null;
   pdfPage = 1;
+  pdfZoom = 1;
   if(epubRendition){ try{ epubRendition.destroy(); }catch{} }
   if(epubBook){ try{ epubBook.destroy(); }catch{} }
   epubRendition = null;
@@ -522,8 +634,8 @@ $("#uploadForm").addEventListener("submit", async e => {
   if(!isAdmin) return;
 
   const file=$("#file").files[0];
-  const cover=$("#coverFile").files[0];
-  if(!file || !cover) return;
+  const cover=$("#coverFile").files[0] || null;
+  if(!file) return;
 
   const ext=(file.name.split(".").pop()||"").toLowerCase();
   const formats={pdf:"PDF",epub:"EPUB",txt:"TXT"};
@@ -532,63 +644,71 @@ $("#uploadForm").addEventListener("submit", async e => {
     return;
   }
 
-  const coverExt=(cover.name.split(".").pop()||"").toLowerCase();
-  if(!["jpg","jpeg","png","webp"].includes(coverExt)){
-    await Swal.fire({icon:"error",title:"Portada no válida",text:"Usa una portada JPG, PNG o WEBP."});
-    return;
-  }
+  let coverPath = null;
+  let coverUrl = null;
 
-  $("#uploadStatus").textContent="Subiendo portada...";
-  const coverClean=cover.name.replace(/[^a-zA-Z0-9._-]/g,"_");
-  const coverPath=`${crypto.randomUUID()}-${coverClean}`;
+  try{
+    if(cover){
+      const coverExt=(cover.name.split(".").pop()||"").toLowerCase();
+      if(!["jpg","jpeg","png","webp"].includes(coverExt)){
+        await Swal.fire({icon:"error",title:"Portada no válida",text:"Usa una portada JPG, PNG o WEBP."});
+        return;
+      }
+      $("#uploadStatus").textContent="Subiendo portada personalizada...";
+      const coverBlob = cover.type === "image/jpeg" ? cover : await blobToJpeg(cover);
+      const uploaded = await uploadCoverFromBlob(coverBlob, `${file.name}-cover.jpg`);
+      coverPath = uploaded.path;
+      coverUrl = uploaded.url;
+    }else if(ext === "pdf"){
+      $("#uploadStatus").textContent="Extrayendo portada del PDF...";
+      const extractedBlob = await extractPdfCoverBlob(file);
+      const uploaded = await uploadCoverFromBlob(extractedBlob, `${file.name}-pdf-cover.jpg`);
+      coverPath = uploaded.path;
+      coverUrl = uploaded.url;
+    }
 
-  const {error:coverError}=await supabase.storage.from("covers").upload(coverPath,cover,{upsert:false});
-  if(coverError){
+    $("#uploadStatus").textContent="Subiendo libro...";
+    const clean=safeFileName(file.name);
+    const path=`${crypto.randomUUID()}-${clean}`;
+
+    const {error:uploadError}=await supabase.storage.from("books").upload(path,file,{upsert:false});
+    if(uploadError){
+      if(coverPath) await supabase.storage.from("covers").remove([coverPath]);
+      $("#uploadStatus").textContent="";
+      await Swal.fire({icon:"error",title:"No se pudo subir el libro",text:uploadError.message});
+      return;
+    }
+
+    const {data:publicData}=supabase.storage.from("books").getPublicUrl(path);
+    const row={
+      title:$("#title").value.trim(),
+      author:$("#author").value.trim(),
+      category:$("#category").value,
+      format:formats[ext],
+      description:$("#description").value.trim()||null,
+      cover_path:coverPath,
+      cover_url:coverUrl,
+      file_path:path,
+      file_url:publicData.publicUrl
+    };
+
+    const {error:insertError}=await supabase.from("books").insert(row);
+    if(insertError){
+      await supabase.storage.from("books").remove([path]);
+      if(coverPath) await supabase.storage.from("covers").remove([coverPath]);
+      $("#uploadStatus").textContent="";
+      await Swal.fire({icon:"error",title:"No se pudo publicar",text:insertError.message});
+      return;
+    }
+
+    $("#uploadForm").reset();
     $("#uploadStatus").textContent="";
-    await Swal.fire({icon:"error",title:"No se pudo subir la portada",text:coverError.message});
-    return;
-  }
-
-  const {data:coverPublic}=supabase.storage.from("covers").getPublicUrl(coverPath);
-
-  $("#uploadStatus").textContent="Subiendo libro...";
-  const clean=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
-  const path=`${crypto.randomUUID()}-${clean}`;
-
-  const {error:uploadError}=await supabase.storage.from("books").upload(path,file,{upsert:false});
-  if(uploadError){
-    await supabase.storage.from("covers").remove([coverPath]);
+    await Swal.fire({icon:"success",title:"Libro publicado",text:coverUrl ? "El libro ya muestra su portada." : "El libro fue publicado correctamente.",confirmButtonText:"Listo"});
+    await loadBooks();
+  }catch(err){
     $("#uploadStatus").textContent="";
-    await Swal.fire({icon:"error",title:"No se pudo subir el libro",text:uploadError.message});
-    return;
+    await Swal.fire({icon:"error",title:"No se pudo preparar la portada",text:err?.message || "Ocurrió un error inesperado."});
   }
-
-  const {data:publicData}=supabase.storage.from("books").getPublicUrl(path);
-  const row={
-    title:$("#title").value.trim(),
-    author:$("#author").value.trim(),
-    category:$("#category").value,
-    format:formats[ext],
-    description:$("#description").value.trim()||null,
-    cover_path:coverPath,
-    cover_url:coverPublic.publicUrl,
-    file_path:path,
-    file_url:publicData.publicUrl
-  };
-
-  const {error:insertError}=await supabase.from("books").insert(row);
-  if(insertError){
-    await supabase.storage.from("books").remove([path]);
-    await supabase.storage.from("covers").remove([coverPath]);
-    $("#uploadStatus").textContent="";
-    await Swal.fire({icon:"error",title:"No se pudo publicar",text:insertError.message});
-    return;
-  }
-
-  $("#uploadForm").reset();
-  $("#uploadStatus").textContent="";
-  await Swal.fire({icon:"success",title:"Libro publicado",text:"La portada y el libro ya aparecen en Folio.",confirmButtonText:"Listo"});
-  await loadBooks();
 });
 
 const {data:{session:initialSession}}=await supabase.auth.getSession();
@@ -600,4 +720,10 @@ await loadBooks();
 supabase.auth.onAuthStateChange(async (_event,newSession)=>{
   session=newSession;
   await checkAdmin();
+});
+
+
+$("#closeReceiptModal")?.addEventListener("click", () => {
+  $("#receiptModalImage").src = "";
+  $("#receiptDialog").close();
 });

@@ -49,3 +49,32 @@ Los datos de Banco/PayPal se configuran desde el panel privado y se guardan en S
 - Campo obligatorio para subir una portada JPG/PNG/WEBP.
 - La portada real aparece en la tarjeta del libro.
 - Al eliminar un libro también se elimina su portada de Supabase Storage.
+
+
+## Nuevas mejoras
+- Si subes un **PDF** sin portada manual, Folio toma automáticamente la **primera página del PDF** como portada del libro.
+- En la solicitud de colaboración ahora también se exige **foto del comprobante**.
+- En el panel de administrador aparece un botón **Ver comprobante** y una miniatura de la imagen.
+
+## Importante
+Antes de usar la foto del comprobante, ejecuta el archivo:
+
+`MIGRACION_COMPROBANTES_FOTO.sql`
+
+en **Supabase → SQL Editor**.
+
+
+## Categorías ampliadas
+Folio ahora incluye categorías como:
+Literatura, Psicología, Autoayuda, Educación, Tecnología, Ciencias, Historia, Biografías, Finanzas, Negocios, Emprendimiento, Filosofía, Religión y espiritualidad, Salud y bienestar, Romance, Misterio y suspenso, Terror, Ciencia ficción, Fantasía, Juvenil, Infantil, Poesía, Arte y diseño, Derecho, Política y sociedad, Cocina, Viajes, Idiomas, Informática y Matemáticas.
+
+## Lector PDF
+- Zoom +
+- Zoom -
+- Ajustar al ancho
+- Navegación anterior / siguiente
+
+## Comprobantes
+- Las imágenes del comprobante se guardan en un bucket privado.
+- Solo el administrador puede abrirlas.
+- Se visualizan en un modal moderno con enlace temporal firmado.
