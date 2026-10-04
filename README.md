@@ -41,3 +41,11 @@ No publiques service_role keys ni contraseñas en GitHub.
 6. Cuando está aprobada, el usuario puede descargar desde la misma ventana.
 
 Los datos de Banco/PayPal se configuran desde el panel privado y se guardan en Supabase.
+
+
+## Mejoras visuales
+- Lector PDF propio con PDF.js, ajustado al ancho del celular y navegación página por página.
+- Confirmaciones y avisos con SweetAlert2.
+- Campo obligatorio para subir una portada JPG/PNG/WEBP.
+- La portada real aparece en la tarjeta del libro.
+- Al eliminar un libro también se elimina su portada de Supabase Storage.

@@ -1,4 +1,6 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
 
 const SUPABASE_URL = "https://objfdwsmqpzafnjxanij.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Q7oN05HWL-idjP-Eadzeuw_KHnFCvgg";
@@ -139,19 +141,35 @@ async function renderAdminList(){
   $("#adminBookList").innerHTML = books.length ? books.map(b => `
     <div class="adminrow">
       <div><strong>${escapeHtml(b.title)}</strong><small>${escapeHtml(b.author)} · ${escapeHtml(b.format)}</small></div>
-      <button class="btn danger deleteBook" data-id="${b.id}" data-path="${escapeHtml(b.file_path || "")}" data-url="${escapeHtml(b.file_url || "")}">Eliminar</button>
+      <button class="btn danger deleteBook" data-id="${b.id}" data-path="${escapeHtml(b.file_path || "")}" data-cover-path="${escapeHtml(b.cover_path || "")}" data-url="${escapeHtml(b.file_url || "")}">Eliminar</button>
     </div>`).join("") : "<p>No hay libros todavía.</p>";
 
   document.querySelectorAll(".deleteBook").forEach(btn => btn.onclick = async () => {
-    if(!confirm("¿Eliminar este libro de Folio?")) return;
+    const result = await Swal.fire({
+      icon:"warning",
+      title:"¿Eliminar este libro?",
+      text:"También se eliminarán el archivo y la portada almacenados.",
+      showCancelButton:true,
+      confirmButtonText:"Sí, eliminar",
+      cancelButtonText:"Cancelar",
+      reverseButtons:true
+    });
+    if(!result.isConfirmed) return;
+
     const id = btn.dataset.id;
     const path = btn.dataset.path;
-    const url = btn.dataset.url;
-    if(url.startsWith(SUPABASE_URL) && path){
-      await supabase.storage.from("books").remove([path]);
-    }
+    const coverPath = btn.dataset.coverPath;
+
+    if(path) await supabase.storage.from("books").remove([path]);
+    if(coverPath) await supabase.storage.from("covers").remove([coverPath]);
+
     const {error} = await supabase.from("books").delete().eq("id",id);
-    if(error) return alert(error.message);
+    if(error){
+      await Swal.fire({icon:"error",title:"No se pudo eliminar",text:error.message});
+      return;
+    }
+
+    await Swal.fire({icon:"success",title:"Libro eliminado",timer:1200,showConfirmButton:false});
     await loadBooks();
   });
 }
@@ -249,6 +267,7 @@ $("#contributionForm").addEventListener("submit", async e => {
   }
 
   $("#contributionState").textContent = "⏳ Comprobante enviado. Espera la aprobación del administrador.";
+  await Swal.fire({icon:"success",title:status==="approved"?"Solicitud aprobada":"Solicitud rechazada",timer:1200,showConfirmButton:false});
   await loadAdminContributions();
 });
 
@@ -316,7 +335,7 @@ async function reviewContribution(id,status){
     .update({status, reviewed_at:new Date().toISOString()})
     .eq("id",id);
 
-  if(error) return alert(error.message);
+  if(error){ await Swal.fire({icon:"error",title:"No se pudo completar",text:error.message}); return; }
   await loadAdminContributions();
 }
 
@@ -336,6 +355,9 @@ $("#savePaymentSettings").onclick = async () => {
   if(!error) await loadSiteSettings();
 };
 
+let pdfDoc = null;
+let pdfPage = 1;
+let pdfRendering = false;
 let epubBook = null;
 let epubRendition = null;
 
@@ -351,7 +373,64 @@ async function openReader(book){
 
   try{
     if(format === "PDF"){
-      content.innerHTML = `<iframe class="pdf-frame" src="${escapeHtml(url)}#toolbar=1&navpanes=0" title="${escapeHtml(book.title)}"></iframe>`;
+      content.innerHTML = `
+        <div class="pdf-reader-shell">
+          <div class="pdf-toolbar">
+            <button class="btn secondary" id="pdfPrev">← Anterior</button>
+            <span id="pdfPageInfo">Página 1</span>
+            <button class="btn secondary" id="pdfNext">Siguiente →</button>
+          </div>
+          <div class="pdf-canvas-wrap"><canvas id="pdfCanvas"></canvas></div>
+        </div>`;
+      pdfDoc = await pdfjsLib.getDocument(url).promise;
+      pdfPage = 1;
+
+      async function renderPdfPage(num){
+        if(pdfRendering) return;
+        pdfRendering = true;
+        try{
+          const page = await pdfDoc.getPage(num);
+          const canvas = $("#pdfCanvas");
+          const ctx = canvas.getContext("2d");
+          const wrap = canvas.parentElement;
+          const baseViewport = page.getViewport({scale:1});
+          const maxWidth = Math.max(280, Math.min(wrap.clientWidth - 24, 900));
+          const scale = maxWidth / baseViewport.width;
+          const viewport = page.getViewport({scale});
+          const ratio = window.devicePixelRatio || 1;
+
+          canvas.width = Math.floor(viewport.width * ratio);
+          canvas.height = Math.floor(viewport.height * ratio);
+          canvas.style.width = `${viewport.width}px`;
+          canvas.style.height = `${viewport.height}px`;
+
+          await page.render({
+            canvasContext: ctx,
+            viewport,
+            transform: ratio !== 1 ? [ratio,0,0,ratio,0,0] : null
+          }).promise;
+
+          $("#pdfPageInfo").textContent = `Página ${num} de ${pdfDoc.numPages}`;
+          $("#pdfPrev").disabled = num <= 1;
+          $("#pdfNext").disabled = num >= pdfDoc.numPages;
+          wrap.scrollTop = 0;
+        }finally{
+          pdfRendering = false;
+        }
+      }
+
+      $("#pdfPrev").onclick = async () => {
+        if(pdfPage <= 1) return;
+        pdfPage -= 1;
+        await renderPdfPage(pdfPage);
+      };
+      $("#pdfNext").onclick = async () => {
+        if(pdfPage >= pdfDoc.numPages) return;
+        pdfPage += 1;
+        await renderPdfPage(pdfPage);
+      };
+
+      await renderPdfPage(pdfPage);
       return;
     }
 
@@ -386,6 +465,8 @@ async function openReader(book){
 }
 
 $("#closeReader").onclick = () => {
+  pdfDoc = null;
+  pdfPage = 1;
   if(epubRendition){ try{ epubRendition.destroy(); }catch{} }
   if(epubBook){ try{ epubBook.destroy(); }catch{} }
   epubRendition = null;
@@ -439,18 +520,48 @@ $("#claimBtn").onclick = async () => {
 $("#uploadForm").addEventListener("submit", async e => {
   e.preventDefault();
   if(!isAdmin) return;
+
   const file=$("#file").files[0];
-  if(!file) return;
+  const cover=$("#coverFile").files[0];
+  if(!file || !cover) return;
+
   const ext=(file.name.split(".").pop()||"").toLowerCase();
   const formats={pdf:"PDF",epub:"EPUB",txt:"TXT"};
-  if(!formats[ext]) return $("#uploadStatus").textContent="Solo se permiten PDF, EPUB o TXT.";
+  if(!formats[ext]){
+    await Swal.fire({icon:"error",title:"Formato no permitido",text:"Solo se permiten PDF, EPUB o TXT."});
+    return;
+  }
 
-  $("#uploadStatus").textContent="Subiendo archivo...";
+  const coverExt=(cover.name.split(".").pop()||"").toLowerCase();
+  if(!["jpg","jpeg","png","webp"].includes(coverExt)){
+    await Swal.fire({icon:"error",title:"Portada no válida",text:"Usa una portada JPG, PNG o WEBP."});
+    return;
+  }
+
+  $("#uploadStatus").textContent="Subiendo portada...";
+  const coverClean=cover.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+  const coverPath=`${crypto.randomUUID()}-${coverClean}`;
+
+  const {error:coverError}=await supabase.storage.from("covers").upload(coverPath,cover,{upsert:false});
+  if(coverError){
+    $("#uploadStatus").textContent="";
+    await Swal.fire({icon:"error",title:"No se pudo subir la portada",text:coverError.message});
+    return;
+  }
+
+  const {data:coverPublic}=supabase.storage.from("covers").getPublicUrl(coverPath);
+
+  $("#uploadStatus").textContent="Subiendo libro...";
   const clean=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
   const path=`${crypto.randomUUID()}-${clean}`;
 
   const {error:uploadError}=await supabase.storage.from("books").upload(path,file,{upsert:false});
-  if(uploadError) return $("#uploadStatus").textContent=uploadError.message;
+  if(uploadError){
+    await supabase.storage.from("covers").remove([coverPath]);
+    $("#uploadStatus").textContent="";
+    await Swal.fire({icon:"error",title:"No se pudo subir el libro",text:uploadError.message});
+    return;
+  }
 
   const {data:publicData}=supabase.storage.from("books").getPublicUrl(path);
   const row={
@@ -459,17 +570,24 @@ $("#uploadForm").addEventListener("submit", async e => {
     category:$("#category").value,
     format:formats[ext],
     description:$("#description").value.trim()||null,
+    cover_path:coverPath,
+    cover_url:coverPublic.publicUrl,
     file_path:path,
     file_url:publicData.publicUrl
   };
+
   const {error:insertError}=await supabase.from("books").insert(row);
   if(insertError){
     await supabase.storage.from("books").remove([path]);
-    return $("#uploadStatus").textContent=insertError.message;
+    await supabase.storage.from("covers").remove([coverPath]);
+    $("#uploadStatus").textContent="";
+    await Swal.fire({icon:"error",title:"No se pudo publicar",text:insertError.message});
+    return;
   }
 
   $("#uploadForm").reset();
-  $("#uploadStatus").textContent="Libro publicado correctamente.";
+  $("#uploadStatus").textContent="";
+  await Swal.fire({icon:"success",title:"Libro publicado",text:"La portada y el libro ya aparecen en Folio.",confirmButtonText:"Listo"});
   await loadBooks();
 });
 

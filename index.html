@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Folio, repositorio digital de libros y lecturas.">
   <title>Folio · Repositorio de libros</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -114,7 +115,8 @@
             <option>Ciencias</option>
           </select>
           <textarea id="description" placeholder="Descripción breve"></textarea>
-          <input id="file" type="file" accept=".pdf,.epub,.txt" required>
+          <label class="file-field"><span>Portada del libro</span><input id="coverFile" type="file" accept=".jpg,.jpeg,.png,.webp" required><small>JPG, PNG o WEBP</small></label>
+          <label class="file-field"><span>Archivo del libro</span><input id="file" type="file" accept=".pdf,.epub,.txt" required><small>PDF, EPUB o TXT</small></label>
           <button class="btn primary" type="submit">Subir libro</button>
         </div>
         <p id="uploadStatus" class="status"></p>
@@ -237,6 +239,7 @@
   </form>
 </dialog>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
 <script type="module" src="app.js"></script>
 </body>
