@@ -76,7 +76,6 @@ function symbolFor(category){
     "Matemáticas":"∑"
   };
   return map[category] || "✦";
-}[category] || "✦";
 }
 
 function card(b){
@@ -230,8 +229,8 @@ async function renderAdminList(){
 $("#search").addEventListener("input",render);
 $("#sort").addEventListener("change",render);
 
-document.querySelectorAll(".chip").forEach(c => c.onclick = () => {
-  document.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));
+document.querySelectorAll("button.chip").forEach(c => c.onclick = () => {
+  document.querySelectorAll("button.chip").forEach(x=>x.classList.remove("active"));
   c.classList.add("active");
   category = c.dataset.category;
   render();
@@ -240,7 +239,7 @@ document.querySelectorAll(".chip").forEach(c => c.onclick = () => {
 
 $("#categoryQuickFilter")?.addEventListener("change", e => {
   if(!e.target.value) return;
-  document.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll("button.chip").forEach(x=>x.classList.remove("active"));
   category = e.target.value;
   render();
   $("#biblioteca").scrollIntoView({behavior:"smooth"});
@@ -390,11 +389,14 @@ async function loadAdminContributions(){
 
   $("#contributionsAdminList").innerHTML = (data || []).length ? data.map(c => `
     <div class="contribution-admin-row">
-      <div>
+      <div class="contribution-info">
         <strong>${escapeHtml(c.books?.title || "Libro")}</strong>
         <small>${escapeHtml(c.payment_method)} · Ref: ${escapeHtml(c.payment_reference)}</small>
         <small>${new Date(c.created_at).toLocaleString("es")}</small>
         <span class="status-pill status-${escapeHtml(c.status)}">${escapeHtml(c.status)}</span>
+      </div>
+      <div class="contribution-proof">
+        ${c.payment_receipt_path ? `<button class="btn secondary viewReceipt" data-path="${escapeHtml(c.payment_receipt_path)}" data-title="${escapeHtml(c.books?.title || "Libro")}">Ver comprobante</button>` : `<small>Sin imagen</small>`}
       </div>
       <div class="review-actions">
         ${c.status === "pending" ? `
