@@ -1,0 +1,3 @@
+PENSAR EN CÓDIGO
+
+Guía breve de Folio sobre pensamiento lógico, algoritmos y resolución de problemas.
