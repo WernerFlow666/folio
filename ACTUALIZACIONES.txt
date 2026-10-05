@@ -1,0 +1,16 @@
+FOLIO - VERSIÓN FINAL ACTUALIZADA
+
+Incluye:
+- Importador de Google Drive
+- Publicación por lotes
+- Prevención de duplicados
+- Portadas automáticas desde la primera página
+- Flyer de colaboración
+- Editor de libros para administrador
+- Edición de título, autor, categoría, descripción y portada
+
+IMPORTANTE:
+La validación más reciente para NO publicar libros sin título, autor,
+categoría y descripción está configurada directamente en Supabase
+(función import-drive-pdf, versión 4). No requiere cambios adicionales
+en los archivos del sitio.
