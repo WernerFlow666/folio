@@ -627,7 +627,7 @@ async function loadDriveQueue(){
         <div class="queue-main">
           <strong>${escapeHtml(r.drive_title)}</strong>
           <small class="${ready ? "queue-ready" : "queue-waiting"}">
-            ${ready ? "Listo para publicar" : "Esperando título, autor, categoría y descripción"}
+            ${ready ? "Listo para publicar" : "Los datos se detectarán automáticamente al importar"}
           </small>
         </div>
       </div>`;
@@ -704,11 +704,10 @@ async function importDriveBatch(){
 
   const batchSize = Number($("#driveBatchSize")?.value || 5);
 
-  const {data:readyData,error} = await supabase
+  const {data,error} = await supabase
     .from("drive_import_queue")
     .select("id,drive_file_id,drive_title,status,metadata_status")
     .eq("status","pending")
-    .eq("metadata_status","ready")
     .order("created_at",{ascending:true})
     .limit(batchSize);
 
@@ -717,19 +716,11 @@ async function importDriveBatch(){
     return;
   }
 
-  if(!readyData?.length){
-    const {count:waitingCount} = await supabase
-      .from("drive_import_queue")
-      .select("id",{count:"exact",head:true})
-      .eq("status","pending")
-      .neq("metadata_status","ready");
-
+  if(!data?.length){
     await Swal.fire({
       icon:"info",
-      title:"No hay libros listos todavía",
-      text: waitingCount
-        ? `${waitingCount} libro(s) siguen esperando metadatos. No se publicarán incompletos.`
-        : "La cola de importación está vacía."
+      title:"No hay libros pendientes",
+      text:"La cola de importación está vacía."
     });
     await loadDriveQueue();
     return;
@@ -739,16 +730,25 @@ async function importDriveBatch(){
   $("#importDriveBatch").disabled = true;
   const results = [];
 
-  for(let i=0;i<readyData.length;i++){
-    const item = readyData[i];
-    $("#driveImportBar").style.width = `${Math.round((i/readyData.length)*100)}%`;
-    $("#driveImportStatus").textContent = `Publicando ${i+1} de ${readyData.length}: ${item.drive_title}`;
+  for(let i=0;i<data.length;i++){
+    const item = data[i];
+    $("#driveImportBar").style.width = `${Math.round((i/data.length)*100)}%`;
+
+    const fase = item.metadata_status === "ready"
+      ? "Publicando"
+      : "Detectando datos y publicando";
+
+    $("#driveImportStatus").textContent = `${fase} ${i+1} de ${data.length}: ${item.drive_title}`;
 
     try{
       const result = await importOneDriveItem(item);
       results.push(result);
     }catch(err){
-      results.push({type:"error",title:item.drive_title,error:err?.message || String(err)});
+      results.push({
+        type:"error",
+        title:item.drive_title,
+        error:err?.message || String(err)
+      });
     }
 
     await loadDriveQueue();
@@ -770,21 +770,14 @@ async function importDriveBatch(){
     await Swal.fire({
       icon:"warning",
       title:"Lote terminado con avisos",
-      html:`<b>${imported}</b> publicados · <b>${skipped}</b> duplicados · <b>${waiting}</b> esperando datos · <b>${errors.length}</b> errores reales.<br><br>${escapeHtml(errors[0].error || "")}`,
-      confirmButtonText:"Entendido"
-    });
-  }else if(waiting){
-    await Swal.fire({
-      icon:"info",
-      title:"Lote terminado",
-      html:`<b>${imported}</b> publicados · <b>${skipped}</b> duplicados · <b>${waiting}</b> esperando metadatos.`,
+      html:`<b>${imported}</b> publicados · <b>${skipped}</b> duplicados · <b>${errors.length}</b> errores reales.<br><br>${escapeHtml(errors[0].error || "")}`,
       confirmButtonText:"Entendido"
     });
   }else{
     await Swal.fire({
       icon:"success",
       title:"Lote publicado",
-      text:`${imported} libro(s) publicado(s) y ${skipped} duplicado(s) omitido(s).`,
+      html:`<b>${imported}</b> libro(s) publicados automáticamente.<br><b>${skipped}</b> duplicado(s) omitidos.`,
       confirmButtonText:"Listo"
     });
   }
