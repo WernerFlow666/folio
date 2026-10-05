@@ -608,30 +608,22 @@ async function loadDriveQueue(){
 
   const rows = data || [];
   const pendingRows = rows.filter(r => r.status === "pending");
-  const readyRows = pendingRows.filter(r => r.metadata_status === "ready");
-  const waitingRows = pendingRows.filter(r => r.metadata_status !== "ready");
 
   $("#statPending").textContent = pendingRows.length;
-  $("#statReady").textContent = readyRows.length;
-  $("#statWaiting").textContent = waitingRows.length;
   $("#statImported").textContent = rows.filter(r => r.status === "imported").length;
   $("#statSkipped").textContent = rows.filter(r => r.status === "skipped_duplicate").length;
   $("#statErrors").textContent = rows.filter(r => r.status === "error").length;
 
   const preview = pendingRows.slice(0,10);
-  $("#driveQueuePreview").innerHTML = preview.length ? preview.map(r => {
-    const ready = r.metadata_status === "ready";
-    return `
-      <div class="queue-row">
-        <span class="queue-icon">PDF</span>
-        <div class="queue-main">
-          <strong>${escapeHtml(r.drive_title)}</strong>
-          <small class="${ready ? "queue-ready" : "queue-waiting"}">
-            ${ready ? "Listo para publicar" : "Los datos se detectarán automáticamente al importar"}
-          </small>
-        </div>
-      </div>`;
-  }).join("") : `<p class="status">No hay archivos pendientes.</p>`;
+  $("#driveQueuePreview").innerHTML = preview.length ? preview.map(r => `
+    <div class="queue-row">
+      <span class="queue-icon">PDF</span>
+      <div class="queue-main">
+        <strong>${escapeHtml(r.drive_title)}</strong>
+        <small class="queue-auto">Título, autor, categoría y descripción se detectarán automáticamente al importar</small>
+      </div>
+    </div>
+  `).join("") : `<p class="status">No hay archivos pendientes.</p>`;
 }
 
 async function createImportedCover(book){
@@ -717,11 +709,7 @@ async function importDriveBatch(){
   }
 
   if(!data?.length){
-    await Swal.fire({
-      icon:"info",
-      title:"No hay libros pendientes",
-      text:"La cola de importación está vacía."
-    });
+    await Swal.fire({icon:"info",title:"No hay libros pendientes",text:"La cola de importación está vacía."});
     await loadDriveQueue();
     return;
   }
@@ -733,22 +721,13 @@ async function importDriveBatch(){
   for(let i=0;i<data.length;i++){
     const item = data[i];
     $("#driveImportBar").style.width = `${Math.round((i/data.length)*100)}%`;
-
-    const fase = item.metadata_status === "ready"
-      ? "Publicando"
-      : "Detectando datos y publicando";
-
-    $("#driveImportStatus").textContent = `${fase} ${i+1} de ${data.length}: ${item.drive_title}`;
+    $("#driveImportStatus").textContent = `Detectando datos y publicando ${i+1} de ${data.length}: ${item.drive_title}`;
 
     try{
       const result = await importOneDriveItem(item);
       results.push(result);
     }catch(err){
-      results.push({
-        type:"error",
-        title:item.drive_title,
-        error:err?.message || String(err)
-      });
+      results.push({type:"error",title:item.drive_title,error:err?.message || String(err)});
     }
 
     await loadDriveQueue();
@@ -760,7 +739,6 @@ async function importDriveBatch(){
 
   const imported = results.filter(x=>x.type==="imported").length;
   const skipped = results.filter(x=>x.type==="skipped").length;
-  const waiting = results.filter(x=>x.type==="waiting").length;
   const errors = results.filter(x=>x.type==="error");
 
   await loadBooks();

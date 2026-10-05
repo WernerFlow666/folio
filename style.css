@@ -533,9 +533,7 @@ textarea:focus{
 
 
 /* Estado de metadatos del importador */
-.import-stats{
-  grid-template-columns:repeat(6,minmax(0,1fr));
-}
+.import-stats{grid-template-columns:repeat(4,minmax(0,1fr));}
 .queue-main{
   min-width:0;
 }
@@ -551,5 +549,14 @@ textarea:focus{
   .import-stats{grid-template-columns:repeat(3,1fr)}
 }
 @media(max-width:700px){
+  .import-stats{grid-template-columns:repeat(2,1fr)}
+}
+
+
+.queue-auto{
+  color:#1f684e !important;
+  font-weight:700;
+}
+@media(max-width:900px){
   .import-stats{grid-template-columns:repeat(2,1fr)}
 }
