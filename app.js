@@ -20,6 +20,15 @@ const saveFavs = x => localStorage.setItem("folio-favs", JSON.stringify(x));
 
 function safeFileName(name="archivo"){ return name.replace(/[^a-zA-Z0-9._-]/g,"_"); }
 
+const BOOK_CATEGORIES = [
+  "Literatura","Psicología","Autoayuda","Educación","Tecnología","Ciencias","Historia",
+  "Biografías","Finanzas","Negocios","Emprendimiento","Filosofía","Religión y espiritualidad",
+  "Salud y bienestar","Romance","Misterio y suspenso","Terror","Ciencia ficción","Fantasía",
+  "Juvenil","Infantil","Poesía","Arte y diseño","Derecho","Política y sociedad","Cocina",
+  "Viajes","Idiomas","Informática","Matemáticas","Sin clasificar"
+];
+
+
 async function blobToJpeg(blob, quality=0.92){
   const img = await new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob);
@@ -189,13 +198,146 @@ function updateAdminUI(){
   if($("#authBtn")) $("#authBtn").textContent = logged ? "✓" : "WO";
 }
 
+
+async function openEditBook(book){
+  if(!isAdmin || !book) return;
+
+  const categoryOptions = BOOK_CATEGORIES.map(c =>
+    `<option value="${escapeHtml(c)}" ${book.category === c ? "selected" : ""}>${escapeHtml(c)}</option>`
+  ).join("");
+
+  const result = await Swal.fire({
+    title:"Editar libro",
+    width:640,
+    html:`
+      <div class="folio-edit-form">
+        <label>Título
+          <input id="editBookTitle" class="swal2-input" value="${escapeHtml(book.title || "")}">
+        </label>
+        <label>Autor
+          <input id="editBookAuthor" class="swal2-input" value="${escapeHtml(book.author || "")}">
+        </label>
+        <label>Categoría
+          <select id="editBookCategory" class="swal2-select">${categoryOptions}</select>
+        </label>
+        <label>Descripción
+          <textarea id="editBookDescription" class="swal2-textarea" placeholder="Descripción del libro">${escapeHtml(book.description || "")}</textarea>
+        </label>
+        <label>Portada nueva <small>(opcional)</small>
+          <input id="editBookCover" class="swal2-file" type="file" accept=".jpg,.jpeg,.png,.webp">
+        </label>
+        ${book.cover_url ? `<div class="edit-cover-preview"><img src="${escapeHtml(book.cover_url)}" alt="Portada actual"><small>Portada actual</small></div>` : ""}
+        <p class="edit-help">El archivo PDF/EPUB/TXT no se modifica. Solo se actualizan los datos visibles del libro.</p>
+      </div>
+    `,
+    showCancelButton:true,
+    confirmButtonText:"Guardar cambios",
+    cancelButtonText:"Cancelar",
+    focusConfirm:false,
+    preConfirm:() => {
+      const title = document.querySelector("#editBookTitle")?.value.trim();
+      const author = document.querySelector("#editBookAuthor")?.value.trim();
+      const category = document.querySelector("#editBookCategory")?.value;
+      const description = document.querySelector("#editBookDescription")?.value.trim();
+      const coverFile = document.querySelector("#editBookCover")?.files?.[0] || null;
+
+      if(!title){
+        Swal.showValidationMessage("El título es obligatorio.");
+        return false;
+      }
+      if(!author){
+        Swal.showValidationMessage("El autor es obligatorio.");
+        return false;
+      }
+      if(!category){
+        Swal.showValidationMessage("Selecciona una categoría.");
+        return false;
+      }
+
+      return {title,author,category,description,coverFile};
+    }
+  });
+
+  if(!result.isConfirmed || !result.value) return;
+
+  const payload = {
+    title:result.value.title,
+    author:result.value.author,
+    category:result.value.category,
+    description:result.value.description || null,
+    updated_at:new Date().toISOString()
+  };
+
+  let newCoverPath = null;
+  let newCoverUrl = null;
+
+  try{
+    if(result.value.coverFile){
+      const file = result.value.coverFile;
+      const ext = (file.name.split(".").pop() || "").toLowerCase();
+      if(!["jpg","jpeg","png","webp"].includes(ext)){
+        await Swal.fire({icon:"error",title:"Portada no válida",text:"Usa JPG, PNG o WEBP."});
+        return;
+      }
+
+      const coverBlob = file.type === "image/jpeg" ? file : await blobToJpeg(file);
+      const uploaded = await uploadCoverFromBlob(coverBlob, `${payload.title}-cover.jpg`);
+      newCoverPath = uploaded.path;
+      newCoverUrl = uploaded.url;
+      payload.cover_path = newCoverPath;
+      payload.cover_url = newCoverUrl;
+    }
+
+    const {error} = await supabase.from("books").update(payload).eq("id",book.id);
+
+    if(error){
+      if(newCoverPath) await supabase.storage.from("covers").remove([newCoverPath]);
+      await Swal.fire({icon:"error",title:"No se pudo guardar",text:error.message});
+      return;
+    }
+
+    if(newCoverPath && book.cover_path && book.cover_path !== newCoverPath){
+      await supabase.storage.from("covers").remove([book.cover_path]);
+    }
+
+    await loadBooks();
+
+    await Swal.fire({
+      icon:"success",
+      title:"Libro actualizado",
+      text:"Los cambios ya aparecen en la biblioteca.",
+      timer:1500,
+      showConfirmButton:false
+    });
+  }catch(err){
+    if(newCoverPath) await supabase.storage.from("covers").remove([newCoverPath]);
+    await Swal.fire({
+      icon:"error",
+      title:"No se pudo editar el libro",
+      text:err?.message || "Ocurrió un error inesperado."
+    });
+  }
+}
+
 async function renderAdminList(){
   if(!isAdmin || !$("#adminBookList")) return;
   $("#adminBookList").innerHTML = books.length ? books.map(b => `
     <div class="adminrow">
-      <div><strong>${escapeHtml(b.title)}</strong><small>${escapeHtml(b.author)} · ${escapeHtml(b.format)}</small></div>
-      <button class="btn danger deleteBook" data-id="${b.id}" data-path="${escapeHtml(b.file_path || "")}" data-cover-path="${escapeHtml(b.cover_path || "")}" data-url="${escapeHtml(b.file_url || "")}">Eliminar</button>
+      <div>
+        <strong>${escapeHtml(b.title)}</strong>
+        <small>${escapeHtml(b.author)} · ${escapeHtml(b.category)} · ${escapeHtml(b.format)}</small>
+      </div>
+      <div class="adminrow-actions">
+        <button class="btn secondary editBook" data-id="${b.id}">Editar</button>
+        <button class="btn danger deleteBook" data-id="${b.id}" data-path="${escapeHtml(b.file_path || "")}" data-cover-path="${escapeHtml(b.cover_path || "")}" data-url="${escapeHtml(b.file_url || "")}">Eliminar</button>
+      </div>
     </div>`).join("") : "<p>No hay libros todavía.</p>";
+
+  document.querySelectorAll(".editBook").forEach(btn => btn.onclick = async () => {
+    const book = books.find(b => b.id === btn.dataset.id);
+    if(!book) return;
+    await openEditBook(book);
+  });
 
   document.querySelectorAll(".deleteBook").forEach(btn => btn.onclick = async () => {
     const result = await Swal.fire({

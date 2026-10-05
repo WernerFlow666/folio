@@ -319,3 +319,55 @@ dialog{border:0;padding:0;border-radius:24px;width:min(560px,calc(100% - 30px));
 .queue-icon{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;background:#efe9df;color:#9c3434;font-size:11px;font-weight:900}
 .queue-row small{display:block;color:var(--muted);margin-top:3px}
 @media(max-width:700px){.import-stats{grid-template-columns:repeat(2,1fr)}.drive-import-head{flex-direction:column}.drive-import-actions .btn,.drive-import-actions select{width:100%}.folio-flyer{max-height:48vh}}
+
+
+/* Edición de libros */
+.adminrow-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.folio-edit-form{
+  text-align:left;
+}
+.folio-edit-form label{
+  display:block;
+  font-weight:700;
+  margin:10px 0 4px;
+}
+.folio-edit-form .swal2-input,
+.folio-edit-form .swal2-select,
+.folio-edit-form .swal2-textarea,
+.folio-edit-form .swal2-file{
+  width:100%;
+  margin:5px 0 10px;
+  box-sizing:border-box;
+}
+.folio-edit-form .swal2-textarea{
+  min-height:130px;
+}
+.edit-cover-preview{
+  margin-top:12px;
+  display:flex;
+  gap:12px;
+  align-items:center;
+}
+.edit-cover-preview img{
+  width:72px;
+  height:96px;
+  object-fit:cover;
+  border-radius:10px;
+  border:1px solid var(--line);
+}
+.edit-help{
+  color:var(--muted);
+  font-size:13px;
+  margin-top:10px;
+}
+@media(max-width:700px){
+  .adminrow-actions{
+    width:100%;
+    justify-content:flex-start;
+  }
+}

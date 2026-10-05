@@ -89,3 +89,9 @@ El panel de administrador incluye contador de pendientes, importados, duplicados
 
 ## Flyer
 `flyer-colaboracion.png` aparece dentro de la ventana de colaboración.
+
+
+## Edición de libros
+En el panel de administrador, cada libro tiene un botón `Editar`.
+Permite actualizar título, autor, categoría, descripción y portada.
+El archivo del libro no se reemplaza desde esta edición.
