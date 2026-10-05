@@ -83,3 +83,9 @@ Literatura, Psicología, Autoayuda, Educación, Tecnología, Ciencias, Historia,
 ## Reparación estable
 Esta versión corrige un error de JavaScript que podía ocultar la biblioteca y el panel de administración.
 El archivo `app.js` fue validado sintácticamente antes de generar este paquete.
+
+## Importador de Google Drive
+El panel de administrador incluye contador de pendientes, importados, duplicados y errores; importación por lotes; reintento de errores; y generación automática de portada desde la primera página del PDF ya importado.
+
+## Flyer
+`flyer-colaboracion.png` aparece dentro de la ventana de colaboración.

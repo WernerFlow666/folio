@@ -301,3 +301,21 @@ dialog{border:0;padding:0;border-radius:24px;width:min(560px,calc(100% - 30px));
   .receipt-modal-body img{max-height:calc(100dvh - 110px)}
   .pdf-toolbar-sep{display:none}
 }
+
+.folio-flyer-wrap{display:flex;justify-content:center;margin:8px 0 18px}
+.folio-flyer{display:block;width:min(100%,430px);max-height:58vh;object-fit:contain;border-radius:18px;box-shadow:0 16px 45px rgba(0,0,0,.18);background:#ffd400}
+.drive-import-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
+.drive-import-head h3{margin:4px 0 6px}.drive-import-head p{color:var(--muted);margin:0}
+.import-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:20px 0}
+.stat-card{border:1px solid var(--line);border-radius:16px;padding:16px;background:#fff}
+.stat-card strong{display:block;font:700 32px Georgia,serif;color:var(--accent)}
+.stat-card span{color:var(--muted);font-size:13px}
+.drive-import-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.drive-import-actions select{padding:12px 15px;border:1px solid var(--line);border-radius:999px;background:white}
+.import-progress{margin-top:18px}.progress-track{width:100%;height:12px;overflow:hidden;border-radius:999px;background:#e8e2d7}
+.progress-bar{width:0%;height:100%;background:var(--accent);transition:width .25s ease}
+.drive-queue-preview{margin-top:20px;border-top:1px solid var(--line);padding-top:16px}.drive-queue-preview h4{margin:0 0 10px}
+.queue-row{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.queue-icon{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;background:#efe9df;color:#9c3434;font-size:11px;font-weight:900}
+.queue-row small{display:block;color:var(--muted);margin-top:3px}
+@media(max-width:700px){.import-stats{grid-template-columns:repeat(2,1fr)}.drive-import-head{flex-direction:column}.drive-import-actions .btn,.drive-import-actions select{width:100%}.folio-flyer{max-height:48vh}}

@@ -173,7 +173,7 @@ async function checkAdmin(){
   const {data,error} = await supabase.from("admins").select("user_id").eq("user_id", session.user.id).maybeSingle();
   isAdmin = !error && !!data;
   updateAdminUI();
-  if(isAdmin){ await loadSiteSettings(); await loadAdminContributions(); }
+  if(isAdmin){ await loadSiteSettings(); await loadAdminContributions(); await loadDriveQueue(); }
 }
 
 function updateAdminUI(){
@@ -185,6 +185,7 @@ function updateAdminUI(){
   $("#adminBooks")?.classList.toggle("hidden", !logged || !isAdmin);
   $("#paymentSettingsBox")?.classList.toggle("hidden", !logged || !isAdmin);
   $("#contributionsAdminBox")?.classList.toggle("hidden", !logged || !isAdmin);
+  $("#driveImporterBox")?.classList.toggle("hidden", !logged || !isAdmin);
   if($("#authBtn")) $("#authBtn").textContent = logged ? "✓" : "WO";
 }
 
@@ -448,6 +449,179 @@ $("#savePaymentSettings").onclick = async () => {
   $("#paymentSettingsStatus").textContent = error ? error.message : "Datos de colaboración actualizados.";
   if(!error) await loadSiteSettings();
 };
+
+
+async function loadDriveQueue(){
+  if(!isAdmin || !$("#driveImporterBox")) return;
+
+  const {data,error} = await supabase
+    .from("drive_import_queue")
+    .select("id,drive_file_id,drive_title,status,duplicate_reason,created_at,updated_at")
+    .order("created_at",{ascending:true});
+
+  if(error){
+    $("#driveQueuePreview").innerHTML = `<p class="status">${escapeHtml(error.message)}</p>`;
+    return;
+  }
+
+  const rows = data || [];
+  const counts = {pending:0, imported:0, skipped_duplicate:0, error:0};
+  rows.forEach(r => { if(r.status in counts) counts[r.status]++; });
+
+  $("#statPending").textContent = counts.pending;
+  $("#statImported").textContent = counts.imported;
+  $("#statSkipped").textContent = counts.skipped_duplicate;
+  $("#statErrors").textContent = counts.error;
+
+  const preview = rows.filter(r => r.status === "pending").slice(0,8);
+  $("#driveQueuePreview").innerHTML = preview.length ? preview.map(r => `
+    <div class="queue-row">
+      <span class="queue-icon">PDF</span>
+      <div>
+        <strong>${escapeHtml(r.drive_title)}</strong>
+        <small>Pendiente</small>
+      </div>
+    </div>`).join("") : `<p class="status">No hay archivos pendientes.</p>`;
+}
+
+async function createImportedCover(book){
+  if(!book?.id || !book?.file_url || book.cover_url) return;
+  try{
+    const response = await fetch(book.file_url);
+    if(!response.ok) return;
+    const blob = await response.blob();
+    const file = new File([blob], `${book.title || "libro"}.pdf`, {type:"application/pdf"});
+    const coverBlob = await extractPdfCoverBlob(file);
+    const uploaded = await uploadCoverFromBlob(coverBlob, `${book.title || "libro"}-cover.jpg`);
+    await supabase.from("books").update({
+      cover_path: uploaded.path,
+      cover_url: uploaded.url
+    }).eq("id",book.id);
+  }catch(err){
+    console.warn("No se pudo generar portada automática:", err);
+  }
+}
+
+async function importOneDriveItem(item){
+  const {data,error} = await supabase.functions.invoke("import-drive-pdf", {
+    body: {
+      drive_file_id: item.drive_file_id,
+      drive_title: item.drive_title
+    }
+  });
+
+  if(error) throw error;
+  if(data?.error) throw new Error(data.error);
+
+  if(data?.imported){
+    await createImportedCover(data.imported);
+    return {type:"imported", title:data.imported.title || item.drive_title};
+  }
+
+  if(data?.skipped){
+    return {type:"skipped", title:data.title || item.drive_title};
+  }
+
+  return {type:"unknown", title:item.drive_title};
+}
+
+async function importDriveBatch(){
+  if(!isAdmin) return;
+
+  const batchSize = Number($("#driveBatchSize")?.value || 5);
+  const {data,error} = await supabase
+    .from("drive_import_queue")
+    .select("id,drive_file_id,drive_title,status")
+    .eq("status","pending")
+    .order("created_at",{ascending:true})
+    .limit(batchSize);
+
+  if(error){
+    await Swal.fire({icon:"error",title:"No se pudo cargar la cola",text:error.message});
+    return;
+  }
+
+  if(!data?.length){
+    await Swal.fire({icon:"info",title:"No hay libros pendientes",text:"La cola de importación está vacía."});
+    await loadDriveQueue();
+    return;
+  }
+
+  $("#driveImportProgress")?.classList.remove("hidden");
+  $("#importDriveBatch").disabled = true;
+  const results = [];
+
+  for(let i=0;i<data.length;i++){
+    const item = data[i];
+    $("#driveImportBar").style.width = `${Math.round((i/data.length)*100)}%`;
+    $("#driveImportStatus").textContent = `Importando ${i+1} de ${data.length}: ${item.drive_title}`;
+
+    try{
+      const result = await importOneDriveItem(item);
+      results.push(result);
+    }catch(err){
+      results.push({type:"error",title:item.drive_title,error:err?.message || String(err)});
+    }
+
+    await loadDriveQueue();
+  }
+
+  $("#driveImportBar").style.width = "100%";
+  $("#driveImportStatus").textContent = "Lote terminado.";
+  $("#importDriveBatch").disabled = false;
+
+  const imported = results.filter(x=>x.type==="imported").length;
+  const skipped = results.filter(x=>x.type==="skipped").length;
+  const errors = results.filter(x=>x.type==="error");
+
+  await loadBooks();
+  await loadDriveQueue();
+
+  if(errors.length){
+    await Swal.fire({
+      icon:"warning",
+      title:"Lote terminado con avisos",
+      html:`<b>${imported}</b> importados · <b>${skipped}</b> omitidos · <b>${errors.length}</b> con error.<br><br>${escapeHtml(errors[0].error || "")}`,
+      confirmButtonText:"Entendido"
+    });
+  }else{
+    await Swal.fire({
+      icon:"success",
+      title:"Lote importado",
+      text:`${imported} libro(s) importado(s) y ${skipped} duplicado(s) omitido(s).`,
+      confirmButtonText:"Listo"
+    });
+  }
+}
+
+$("#importDriveBatch")?.addEventListener("click", importDriveBatch);
+$("#refreshDriveQueue")?.addEventListener("click", loadDriveQueue);
+
+$("#retryDriveErrors")?.addEventListener("click", async () => {
+  if(!isAdmin) return;
+  const result = await Swal.fire({
+    icon:"question",
+    title:"¿Reintentar errores?",
+    text:"Los archivos con error volverán a la cola de pendientes.",
+    showCancelButton:true,
+    confirmButtonText:"Sí, reintentar",
+    cancelButtonText:"Cancelar"
+  });
+  if(!result.isConfirmed) return;
+
+  const {error} = await supabase
+    .from("drive_import_queue")
+    .update({status:"pending",duplicate_reason:null,updated_at:new Date().toISOString()})
+    .eq("status","error");
+
+  if(error){
+    await Swal.fire({icon:"error",title:"No se pudo actualizar",text:error.message});
+    return;
+  }
+
+  await loadDriveQueue();
+  await Swal.fire({icon:"success",title:"Errores devueltos a la cola",timer:1300,showConfirmButton:false});
+});
 
 let pdfDoc = null;
 let pdfPage = 1;

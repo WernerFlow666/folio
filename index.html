@@ -178,6 +178,42 @@
       </form>
 
 
+
+      <div id="driveImporterBox" class="adminbox hidden">
+        <div class="drive-import-head">
+          <div>
+            <p class="eyebrow">GOOGLE DRIVE → FOLIO</p>
+            <h3>Importador de libros</h3>
+            <p>Procesa los PDF pendientes por lotes. Los títulos repetidos se omiten automáticamente.</p>
+          </div>
+          <button class="btn secondary" id="refreshDriveQueue" type="button">Actualizar</button>
+        </div>
+        <div class="import-stats">
+          <div class="stat-card"><strong id="statPending">0</strong><span>Pendientes</span></div>
+          <div class="stat-card"><strong id="statImported">0</strong><span>Importados</span></div>
+          <div class="stat-card"><strong id="statSkipped">0</strong><span>Duplicados</span></div>
+          <div class="stat-card"><strong id="statErrors">0</strong><span>Errores</span></div>
+        </div>
+        <div class="drive-import-actions">
+          <select id="driveBatchSize">
+            <option value="1">1 libro</option>
+            <option value="3">3 libros</option>
+            <option value="5" selected>5 libros</option>
+            <option value="10">10 libros</option>
+          </select>
+          <button class="btn primary" id="importDriveBatch" type="button">Importar siguiente lote</button>
+          <button class="btn secondary" id="retryDriveErrors" type="button">Reintentar errores</button>
+        </div>
+        <div class="import-progress hidden" id="driveImportProgress">
+          <div class="progress-track"><div class="progress-bar" id="driveImportBar"></div></div>
+          <p id="driveImportStatus" class="status">Preparando importación...</p>
+        </div>
+        <div class="drive-queue-preview">
+          <h4>Próximos archivos</h4>
+          <div id="driveQueuePreview"><p class="status">Cargando...</p></div>
+        </div>
+      </div>
+
       <div id="paymentSettingsBox" class="adminbox hidden">
         <h3>Flyer y métodos de colaboración</h3>
         <div class="formgrid">
@@ -223,6 +259,11 @@
     <p class="eyebrow">COLABORA Y DESCARGA</p>
     <h2>Colabora con $1</h2>
     <p>Puedes leer el libro gratuitamente en Folio. Para solicitar la descarga, inicia sesión y registra los datos de tu colaboración.</p>
+
+    
+    <div class="folio-flyer-wrap">
+      <img src="flyer-colaboracion.png" alt="Flyer de colaboración Folio" class="folio-flyer">
+    </div>
 
     <div class="supportbox flyer-box">
       <div class="flyer-title">FOLIO · APOYA LA LECTURA</div>
