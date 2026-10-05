@@ -503,15 +503,35 @@ async function createImportedCover(book){
 }
 
 async function importOneDriveItem(item){
-  const {data,error} = await supabase.functions.invoke("import-drive-pdf", {
-    body: {
-      drive_file_id: item.drive_file_id,
-      drive_title: item.drive_title
-    }
+  const {data:{session:activeSession}, error:sessionError} = await supabase.auth.getSession();
+
+  if(sessionError || !activeSession?.access_token){
+    throw new Error("Tu sesión de administrador expiró. Cierra sesión y vuelve a ingresar.");
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/import-drive-pdf`, {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "apikey":SUPABASE_KEY,
+      "Authorization":`Bearer ${activeSession.access_token}`
+    },
+    body:JSON.stringify({
+      drive_file_id:item.drive_file_id,
+      drive_title:item.drive_title
+    })
   });
 
-  if(error) throw error;
-  if(data?.error) throw new Error(data.error);
+  let data = null;
+  try{
+    data = await response.json();
+  }catch{
+    throw new Error(`La función respondió con HTTP ${response.status} sin datos válidos.`);
+  }
+
+  if(!response.ok){
+    throw new Error(data?.error || `Error HTTP ${response.status} al publicar desde Drive.`);
+  }
 
   if(data?.imported){
     await createImportedCover(data.imported);
@@ -522,7 +542,7 @@ async function importOneDriveItem(item){
     return {type:"skipped", title:data.title || item.drive_title};
   }
 
-  return {type:"unknown", title:item.drive_title};
+  throw new Error("La función terminó sin publicar ni omitir el libro.");
 }
 
 async function importDriveBatch(){
@@ -554,7 +574,7 @@ async function importDriveBatch(){
   for(let i=0;i<data.length;i++){
     const item = data[i];
     $("#driveImportBar").style.width = `${Math.round((i/data.length)*100)}%`;
-    $("#driveImportStatus").textContent = `Importando ${i+1} de ${data.length}: ${item.drive_title}`;
+    $("#driveImportStatus").textContent = `Publicando ${i+1} de ${data.length}: ${item.drive_title}`;
 
     try{
       const result = await importOneDriveItem(item);
@@ -587,8 +607,8 @@ async function importDriveBatch(){
   }else{
     await Swal.fire({
       icon:"success",
-      title:"Lote importado",
-      text:`${imported} libro(s) importado(s) y ${skipped} duplicado(s) omitido(s).`,
+      title:"Lote publicado",
+      text:`${imported} libro(s) publicado(s) y ${skipped} duplicado(s) omitido(s).`,
       confirmButtonText:"Listo"
     });
   }
