@@ -14,3 +14,6 @@ La validación más reciente para NO publicar libros sin título, autor,
 categoría y descripción está configurada directamente en Supabase
 (función import-drive-pdf, versión 4). No requiere cambios adicionales
 en los archivos del sitio.
+
+- Selectores y campos de archivo rediseñados para coincidir con el estilo visual de Folio.
+- Estilo aplicado de forma global a Recientes/Título A-Z, Categoría, lotes de Drive y entradas de archivos.

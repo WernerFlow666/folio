@@ -371,3 +371,162 @@ dialog{border:0;padding:0;border-radius:24px;width:min(560px,calc(100% - 30px));
     justify-content:flex-start;
   }
 }
+
+
+/* =========================================================
+   CONTROLES FOLIO — estilo global para selects y archivos
+   ========================================================= */
+
+/* SELECTS */
+select{
+  appearance:none;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  width:100%;
+  min-height:52px;
+  padding:0 48px 0 18px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--accent) 50%) calc(100% - 20px) 22px / 6px 6px no-repeat,
+    linear-gradient(135deg, var(--accent) 50%, transparent 50%) calc(100% - 14px) 22px / 6px 6px no-repeat,
+    #fffdf9;
+  color:var(--ink);
+  font:600 16px/1.2 inherit;
+  cursor:pointer;
+  box-shadow:0 2px 0 rgba(17,45,35,.02);
+  transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease, background-color .2s ease;
+}
+
+select:hover{
+  border-color:rgba(31,77,61,.45);
+  background-color:#fff;
+}
+
+select:focus{
+  outline:none;
+  border-color:var(--accent);
+  box-shadow:0 0 0 4px rgba(31,77,61,.10);
+}
+
+select:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+/* Evita que selects pequeños se estiren de forma rara */
+.toolbar select,
+.sort select,
+.drive-import-actions select,
+#driveBatchSize{
+  width:auto;
+  min-width:170px;
+  border-radius:999px;
+  background-color:#fffdf9;
+}
+
+/* FILE INPUTS */
+input[type="file"]{
+  width:100%;
+  min-height:58px;
+  padding:7px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:#fffdf9;
+  color:var(--muted);
+  font:500 15px/1.2 inherit;
+  cursor:pointer;
+  box-sizing:border-box;
+  transition:border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+
+input[type="file"]:hover{
+  border-color:rgba(31,77,61,.45);
+  background:#fff;
+}
+
+input[type="file"]:focus{
+  outline:none;
+  border-color:var(--accent);
+  box-shadow:0 0 0 4px rgba(31,77,61,.10);
+}
+
+input[type="file"]::file-selector-button{
+  border:0;
+  border-radius:12px;
+  padding:12px 18px;
+  margin-right:14px;
+  background:var(--accent);
+  color:white;
+  font:700 14px/1 inherit;
+  cursor:pointer;
+  transition:transform .18s ease, opacity .18s ease, box-shadow .18s ease;
+  box-shadow:0 4px 10px rgba(31,77,61,.12);
+}
+
+input[type="file"]::file-selector-button:hover{
+  opacity:.92;
+}
+
+input[type="file"]::file-selector-button:active{
+  transform:translateY(1px);
+}
+
+/* Firefox */
+input[type="file"]::-webkit-file-upload-button{
+  border:0;
+  border-radius:12px;
+  padding:12px 18px;
+  margin-right:14px;
+  background:var(--accent);
+  color:white;
+  font-weight:700;
+  cursor:pointer;
+}
+
+/* Inputs y textarea también con la misma familia visual */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="url"],
+textarea{
+  background:#fffdf9;
+  border:1px solid var(--line);
+  border-radius:16px;
+  transition:border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="url"]:focus,
+textarea:focus{
+  outline:none;
+  border-color:var(--accent);
+  box-shadow:0 0 0 4px rgba(31,77,61,.10);
+  background:#fff;
+}
+
+/* Tarjetas de carga más pulidas */
+.upload-grid > label,
+.filebox,
+.upload-box{
+  border-radius:18px;
+}
+
+/* Ajustes móviles */
+@media(max-width:700px){
+  select,
+  .toolbar select,
+  .sort select,
+  .drive-import-actions select,
+  #driveBatchSize{
+    width:100%;
+    min-width:0;
+  }
+
+  input[type="file"]::file-selector-button{
+    padding:11px 14px;
+    margin-right:10px;
+  }
+}
