@@ -530,3 +530,26 @@ textarea:focus{
     margin-right:10px;
   }
 }
+
+
+/* Estado de metadatos del importador */
+.import-stats{
+  grid-template-columns:repeat(6,minmax(0,1fr));
+}
+.queue-main{
+  min-width:0;
+}
+.queue-ready{
+  color:#1f684e !important;
+  font-weight:700;
+}
+.queue-waiting{
+  color:#9a6a22 !important;
+  font-weight:700;
+}
+@media(max-width:1050px){
+  .import-stats{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:700px){
+  .import-stats{grid-template-columns:repeat(2,1fr)}
+}
